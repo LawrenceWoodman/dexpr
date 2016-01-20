@@ -1,7 +1,6 @@
 package dexpr
 
 import (
-	"go/parser"
 	"testing"
 )
 
@@ -75,11 +74,8 @@ func TestEvalBool_noErrors(t *testing.T) {
 		"str": Literal{Value: "hello", Kind: String},
 	}
 	for _, c := range cases {
-		node, err := parser.ParseExpr(c.in)
-		if err != nil {
-			t.Error(err)
-		}
-		got, err := EvalBool(vars, node)
+		dexpr, err := New(c.in)
+		got, err := dexpr.EvalBool(vars)
 		if err != nil {
 			t.Errorf("EvalBool(vars, %q) err == %q", c.in, err)
 		}
@@ -102,11 +98,8 @@ func TestEvalBool_errors(t *testing.T) {
 	}
 	vars := map[string]Literal{}
 	for _, c := range cases {
-		node, err := parser.ParseExpr(c.in)
-		if err != nil {
-			t.Error(err)
-		}
-		got, err := EvalBool(vars, node)
+		dexpr, err := New(c.in)
+		got, err := dexpr.EvalBool(vars)
 		if got != c.want {
 			t.Errorf("EvalBool(vars, %q) == %q, want %q", c.in, got, c.want)
 		}

@@ -6,11 +6,17 @@ package dexpr
 import (
 	"fmt"
 	"go/ast"
+	"go/parser"
 	"go/token"
 	"log"
 	"math"
 	"strconv"
 )
+
+type Expr struct {
+	Expr string
+	Node ast.Node
+}
 
 // TODO: Remove all log references
 type Literal struct {
@@ -130,13 +136,21 @@ func (l *Literal) ValueAsBool() bool {
 	return b
 }
 
-func EvalBool(vars map[string]Literal, node ast.Node) (bool, error) {
+func New(expr string) (*Expr, error) {
+	node, err := parser.ParseExpr(expr)
+	if err != nil {
+		return nil, err
+	}
+	return &Expr{Expr: expr, Node: node}, nil
+}
+
+func (expr *Expr) EvalBool(vars map[string]Literal) (bool, error) {
 	var l Literal
 	inspector := func(n ast.Node) bool {
 		l = nodeToLiteral(vars, n)
 		return false
 	}
-	ast.Inspect(node, inspector)
+	ast.Inspect(expr.Node, inspector)
 	if l.Kind == Bool {
 		return l.ValueAsBool(), nil
 	} else if l.Kind == Error {
