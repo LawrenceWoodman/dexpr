@@ -10,6 +10,7 @@ import (
 	"go/token"
 	"log"
 	"math"
+	"regexp"
 	"strconv"
 )
 
@@ -74,6 +75,21 @@ var kinds = [...]string{
 	Bool:    "Bool",
 }
 
+var regexpIsInt *regexp.Regexp
+var regexpIsFloat *regexp.Regexp
+
+func init() {
+	var err error
+	regexpIsInt, err = regexp.Compile("^\\d+$")
+	if err != nil {
+		log.Fatal("Can't create regexpIsInt: ", err)
+	}
+	regexpIsFloat, err = regexp.Compile("^\\d+\\.\\d+$")
+	if err != nil {
+		log.Fatal("Can't create regexpIsFloat: ", err)
+	}
+}
+
 func (k Kind) String() string {
 	var s string
 	if k >= 0 && k < Kind(len(kinds)) {
@@ -96,52 +112,72 @@ func newLiteralBool(b bool) Literal {
 	}
 }
 
-func (l *Literal) ValueAsFloat() float64 {
-	var err error
-	var f float64
-	if l.Kind == Float || l.Kind == Int {
-		f, err = strconv.ParseFloat(l.Value, 64)
-		if err != nil {
-			log.Fatal("Can't parse as float: ", l.Value)
+func (l *Literal) isInt() bool {
+	if l.Kind == Int {
+		return true
+	}
+	if l.Kind == String {
+		matched := regexpIsInt.MatchString(l.Value)
+		if !matched {
+			return false
 		}
-	} else {
-		log.Fatal("Incompatible type: ", l.Kind)
+		_, err := strconv.ParseInt(l.Value, 10, 64)
+		if err != nil {
+			return false
+		}
+		return true
+	}
+	return false
+}
+
+func (l *Literal) isFloat() bool {
+	if l.Kind == Float {
+		return true
+	}
+	if l.Kind == String {
+		matched := regexpIsFloat.MatchString(l.Value)
+		if !matched {
+			return false
+		}
+		_, err := strconv.ParseFloat(l.Value, 64)
+		if err != nil {
+			return false
+		}
+		return true
+	}
+	return false
+}
+
+func (l *Literal) ValueAsFloat() float64 {
+	f, err := strconv.ParseFloat(l.Value, 64)
+	if err != nil {
+		log.Fatal("Can't parse as float: ", l.Value)
 	}
 	return f
 }
 
 func (l *Literal) ValueAsInt() int64 {
-	var err error
-	var i int64
-	if l.Kind == Int {
-		i, err = strconv.ParseInt(l.Value, 10, 64)
-		if err != nil {
-			log.Fatal("Can't parse as int: ", l.Value)
-		}
-	} else {
-		log.Fatal("Incompatible type: ", l.Kind)
+	i, err := strconv.ParseInt(l.Value, 10, 64)
+	if err != nil {
+		log.Fatal("Can't parse as int: ", l.Value)
 	}
 	return i
 }
 
 func (l *Literal) ValueAsBool() bool {
-	var b bool
-	if l.Value == "1" {
-		b = true
-	} else if l.Value == "0" {
-		b = false
-	} else {
-		log.Fatal("Unrecognized value: ", l.Value)
+	b, err := strconv.ParseBool(l.Value)
+	if err != nil {
+		log.Fatal("Can't parse as bool: ", l.Value)
 	}
 	return b
 }
 
-func New(expr string) (*Expr, error) {
+func New(expr string) (Expr, error) {
 	node, err := parser.ParseExpr(expr)
 	if err != nil {
-		return nil, err
+		return Expr{}, err
 	}
-	return &Expr{Expr: expr, Node: node}, nil
+	return Expr{Expr: expr, Node: node}, nil
 }
 
 func (expr *Expr) EvalBool(vars map[string]Literal) (bool, error) {
@@ -226,13 +262,13 @@ func evalBinaryExpr(lh Literal, rh Literal, op token.Token) Literal {
 func opLss(lh Literal, rh Literal) Literal {
 	var b bool
 	switch true {
-	case lh.Kind == Int && rh.Kind == Int:
+	case lh.isInt() && rh.isInt():
 		b = lh.ValueAsInt() < rh.ValueAsInt()
-	case lh.Kind == Int && rh.Kind == Float:
+	case lh.isInt() && rh.isFloat():
 		b = lh.ValueAsInt() < int64(math.Ceil(rh.ValueAsFloat()))
-	case lh.Kind == Float && rh.Kind == Int:
+	case lh.isFloat() && rh.isInt():
 		b = int64(math.Floor(lh.ValueAsFloat())) < rh.ValueAsInt()
-	case lh.Kind == Float && rh.Kind == Float:
+	case lh.isFloat() && rh.isFloat():
 		b = lh.ValueAsFloat() < rh.ValueAsFloat()
 	default:
 		expected := []Kind{Int, Float}
@@ -246,13 +282,13 @@ func opLss(lh Literal, rh Literal) Literal {
 func opLeq(lh Literal, rh Literal) Literal {
 	var b bool
 	switch true {
-	case lh.Kind == Int && rh.Kind == Int:
+	case lh.isInt() && rh.isInt():
 		b = lh.ValueAsInt() <= rh.ValueAsInt()
-	case lh.Kind == Int && rh.Kind == Float:
+	case lh.isInt() && rh.isFloat():
 		b = lh.ValueAsInt() <= int64(math.Floor(rh.ValueAsFloat()))
-	case lh.Kind == Float && rh.Kind == Int:
+	case lh.isFloat() && rh.isInt():
 		b = int64(math.Floor(lh.ValueAsFloat())) <= rh.ValueAsInt()
-	case lh.Kind == Float && rh.Kind == Float:
+	case lh.isFloat() && rh.isFloat():
 		b = lh.ValueAsFloat() <= rh.ValueAsFloat()
 	default:
 		expected := []Kind{Int, Float}
@@ -266,13 +302,13 @@ func opLeq(lh Literal, rh Literal) Literal {
 func opGtr(lh Literal, rh Literal) Literal {
 	var b bool
 	switch true {
-	case lh.Kind == Int && rh.Kind == Int:
+	case lh.isInt() && rh.isInt():
 		b = lh.ValueAsInt() > rh.ValueAsInt()
-	case lh.Kind == Int && rh.Kind == Float:
+	case lh.isInt() && rh.isFloat():
 		b = lh.ValueAsInt() > int64(math.Floor(rh.ValueAsFloat()))
-	case lh.Kind == Float && rh.Kind == Int:
+	case lh.isFloat() && rh.isInt():
 		b = int64(math.Ceil(lh.ValueAsFloat())) > rh.ValueAsInt()
-	case lh.Kind == Float && rh.Kind == Float:
+	case lh.isFloat() && rh.isFloat():
 		b = lh.ValueAsFloat() > rh.ValueAsFloat()
 	default:
 		expected := []Kind{Int, Float}
@@ -286,9 +322,13 @@ func opGtr(lh Literal, rh Literal) Literal {
 func opEql(lh Literal, rh Literal) Literal {
 	var b bool
 	switch true {
-	case lh.Kind == Int && rh.Kind == Int:
+	case lh.isInt() && rh.isInt():
 		b = lh.ValueAsInt() == rh.ValueAsInt()
-	case lh.Kind == Float && rh.Kind == Float:
+	case lh.isInt() && rh.isFloat():
+		fallthrough
+	case lh.isFloat() && rh.isInt():
+		fallthrough
+	case lh.isFloat() && rh.isFloat():
 		b = lh.ValueAsFloat() == rh.ValueAsFloat()
 	case lh.Kind == String && rh.Kind == String:
 		b = lh.Value == rh.Value
@@ -301,15 +341,15 @@ func opEql(lh Literal, rh Literal) Literal {
 func opAdd(lh Literal, rh Literal) Literal {
 	var r Literal
 	switch true {
-	case lh.Kind == Int && rh.Kind == Int:
+	case lh.isInt() && rh.isInt():
 		i := lh.ValueAsInt() + rh.ValueAsInt()
 		r = Literal{Value: strconv.FormatInt(i, 10), Kind: Int}
-	case lh.Kind == Int && rh.Kind == Float:
+	case lh.isInt() && rh.isFloat():
 		fallthrough
-	case lh.Kind == Float && rh.Kind == Int:
+	case lh.isFloat() && rh.isInt():
 		f := lh.ValueAsFloat() + rh.ValueAsFloat()
 		r = Literal{Value: strconv.FormatFloat(f, 'E', -1, 64), Kind: Float}
-	case lh.Kind == Float && rh.Kind == Float:
+	case lh.isFloat() && rh.isFloat():
 		f := lh.ValueAsFloat() + rh.ValueAsFloat()
 		r = Literal{Value: strconv.FormatFloat(f, 'E', -1, 64), Kind: Float}
 	default:
