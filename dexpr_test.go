@@ -129,11 +129,11 @@ func TestEvalBool_noErrors(t *testing.T) {
 		"b":       Literal{Value: "3", Kind: Int},
 		"c":       Literal{Value: "4.5", Kind: Float},
 		"d":       Literal{Value: "3.5", Kind: Float},
-		"str":     Literal{Value: "hello", Kind: String},
-		"numStrA": Literal{Value: "4", Kind: String},
-		"numStrB": Literal{Value: "3", Kind: String},
-		"numStrC": Literal{Value: "4.5", Kind: String},
-		"numStrD": Literal{Value: "3.5", Kind: String},
+		"str":     NewLiteralString("hello"),
+		"numStrA": NewLiteralString("4"),
+		"numStrB": NewLiteralString("3"),
+		"numStrC": NewLiteralString("4.5"),
+		"numStrD": NewLiteralString("3.5"),
 	}
 	for _, c := range cases {
 		dexpr, err := New(c.in)

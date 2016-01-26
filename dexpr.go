@@ -112,6 +112,12 @@ func newLiteralBool(b bool) Literal {
 	}
 }
 
+// TODO: Consider using an interface for the literals so can store in native
+// format rather than as strings
+func NewLiteralString(s string) Literal {
+	return Literal{Value: s, Kind: String}
+}
+
 func (l *Literal) isInt() bool {
 	if l.Kind == Int {
 		return true
