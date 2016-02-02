@@ -1,6 +1,8 @@
 package dexpr
 
 import (
+	"fmt"
+	"github.com/lawrencewoodman/dlit"
 	"testing"
 )
 
@@ -18,11 +20,11 @@ func TestEvalBool_noErrors(t *testing.T) {
 		/* Becareful of float == int comparison */
 		{"1.0 == 1", true},
 		{"1 == 1.0", true},
+
 		{"numStrB == 3", true},
 		{"numStrB == 3.0", true},
 		{"3 == numStrB", true},
 		{"3.0 == numStrB", true},
-
 		{"a == 4", true},
 		{"a == 5", false},
 		{"a == a", true},
@@ -36,6 +38,19 @@ func TestEvalBool_noErrors(t *testing.T) {
 		{"numStrA == 4", true},
 		{"numStrA == numStrA", true},
 		{"numStrA == numStrB", false},
+		{"numStrC == numStrC", true},
+		{"numStrC == numStrD", false},
+
+		/* Ensure that bools are not used for comparison */
+		{"\"true\" == 1", false},
+		{"\"true\" == 1.0", false},
+		{"\"true\" == \"TRUE\"", false},
+		{"\"TRUE\" == \"TRUE\"", true},
+		{"\"false\" == \"FALSE\"", false},
+		{"\"FALSE\" == \"FALSE\"", true},
+		{"\"false\" ==  0", false},
+		{"\"false\" ==  0.0", false},
+
 		{"6 < 7", true},
 		{"7 < 7", false},
 		{"8 < 7", false},
@@ -121,19 +136,22 @@ func TestEvalBool_noErrors(t *testing.T) {
 		{"9 > 8 && 2 < 3 && 7 > 7", false},
 		{"9 + (8 + 2) > 18", true},
 		{"9 + (8 + 2) > 19", false},
-		{"isFrom(5)", true},
-		{"isFrom(true)", true},
+
+		/*
+			{"isFrom(5)", true},
+			{"isFrom(true)", true},
+		*/
 	}
-	vars := map[string]Literal{
-		"a":       Literal{Value: "4", Kind: Int},
-		"b":       Literal{Value: "3", Kind: Int},
-		"c":       Literal{Value: "4.5", Kind: Float},
-		"d":       Literal{Value: "3.5", Kind: Float},
-		"str":     NewLiteralString("hello"),
-		"numStrA": NewLiteralString("4"),
-		"numStrB": NewLiteralString("3"),
-		"numStrC": NewLiteralString("4.5"),
-		"numStrD": NewLiteralString("3.5"),
+	vars := map[string]*dlit.Literal{
+		"a":       makeLit(4),
+		"b":       makeLit(3),
+		"c":       makeLit(4.5),
+		"d":       makeLit(3.5),
+		"str":     makeLit("hello"),
+		"numStrA": makeLit("4"),
+		"numStrB": makeLit("3"),
+		"numStrC": makeLit("4.5"),
+		"numStrD": makeLit("3.5"),
 	}
 	for _, c := range cases {
 		dexpr, err := New(c.in)
@@ -155,19 +173,33 @@ func TestEvalBool_errors(t *testing.T) {
 	}{
 		{"7 + 8", false, ErrInvalidExpr("Expression doesn't return a bool")},
 		{"7 < \"hello\"", false,
-			ErrInvalidExpr("Invalid kinds, expected: [Int Float], got: [Int String]")},
+			ErrInvalidExpr("Invalid comparison: 7 < \"hello\"")},
+		{"\"world\" > 2.1", false,
+			ErrInvalidExpr("Invalid comparison: \"world\" > 2.1")},
 		{"10 & 101", false, ErrInvalidExpr("Invalid operator: \"&\"")},
+		{"7 && 9", false, ErrInvalidExpr("Invalid operation: 7 && 9")},
 	}
-	vars := map[string]Literal{}
+	vars := map[string]*dlit.Literal{}
 	for _, c := range cases {
 		dexpr, err := New(c.in)
 		got, err := dexpr.EvalBool(vars)
 		if got != c.want {
 			t.Errorf("EvalBool(vars, %q) == %q, want %q", c.in, got, c.want)
 		}
-		if err.Error() != c.wantError.Error() {
+		if err == nil {
+			t.Errorf("EvalBool(vars, %q) err == nil, wantError %q",
+				c.in, c.wantError)
+		} else if err.Error() != c.wantError.Error() {
 			t.Errorf("EvalBool(vars, %q) err == %q, wantError %q",
 				c.in, err, c.wantError)
 		}
 	}
+}
+
+func makeLit(v interface{}) *dlit.Literal {
+	l, err := dlit.New(v)
+	if err != nil {
+		panic(fmt.Sprintf("MakeLit(%q) gave err: %q", v, err))
+	}
+	return l
 }

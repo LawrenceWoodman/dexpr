@@ -5,12 +5,11 @@ package dexpr
 
 import (
 	"fmt"
+	"github.com/lawrencewoodman/dlit"
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"log"
 	"math"
-	"regexp"
 	"strconv"
 )
 
@@ -19,163 +18,16 @@ type Expr struct {
 	Node ast.Node
 }
 
-// TODO: Remove all log references
-type Literal struct {
-	Value string
-	Kind  Kind
-}
-
-type Kind int
-
-type ErrInvalidKind struct {
-	expected Kind
-	got      Kind
-}
-
-func (e ErrInvalidKind) Error() string {
-	return fmt.Sprintf("Invalid kind, expected: %s, got: %s", e.expected, e.got)
-}
-
-type ErrInvalidKinds struct {
-	expected []Kind
-	got      []Kind
-}
-
 type ErrInvalidExpr string
 
 func (e ErrInvalidExpr) Error() string {
 	return string(e)
 }
 
-func (e ErrInvalidKinds) Error() string {
-	return fmt.Sprintf("Invalid kinds, expected: %s, got: %s", e.expected, e.got)
-}
-
 type ErrInvalidOp token.Token
 
 func (e ErrInvalidOp) Error() string {
 	return fmt.Sprintf("Invalid operator: %q", token.Token(e))
-}
-
-const (
-	Illegal Kind = iota
-	Error
-	Int
-	Float
-	String
-	Bool
-)
-
-var kinds = [...]string{
-	Illegal: "Illegal",
-	Error:   "Error",
-	Int:     "Int",
-	Float:   "Float",
-	String:  "String",
-	Bool:    "Bool",
-}
-
-var regexpIsInt *regexp.Regexp
-var regexpIsFloat *regexp.Regexp
-
-func init() {
-	var err error
-	regexpIsInt, err = regexp.Compile("^\\d+$")
-	if err != nil {
-		log.Fatal("Can't create regexpIsInt: ", err)
-	}
-	regexpIsFloat, err = regexp.Compile("^\\d+\\.\\d+$")
-	if err != nil {
-		log.Fatal("Can't create regexpIsFloat: ", err)
-	}
-}
-
-func (k Kind) String() string {
-	var s string
-	if k >= 0 && k < Kind(len(kinds)) {
-		s = kinds[k]
-	} else {
-		s = fmt.Sprintf("kind(%q)", k)
-	}
-	return s
-}
-
-func newLiteralError(e error) Literal {
-	return Literal{Value: e.Error(), Kind: Error}
-}
-
-func newLiteralBool(b bool) Literal {
-	if b {
-		return Literal{Value: "1", Kind: Bool}
-	} else {
-		return Literal{Value: "0", Kind: Bool}
-	}
-}
-
-// TODO: Consider using an interface for the literals so can store in native
-// format rather than as strings
-func NewLiteralString(s string) Literal {
-	return Literal{Value: s, Kind: String}
-}
-
-func (l *Literal) isInt() bool {
-	if l.Kind == Int {
-		return true
-	}
-	if l.Kind == String {
-		matched := regexpIsInt.MatchString(l.Value)
-		if !matched {
-			return false
-		}
-		_, err := strconv.ParseInt(l.Value, 10, 64)
-		if err != nil {
-			return false
-		}
-		return true
-	}
-	return false
-}
-
-func (l *Literal) isFloat() bool {
-	if l.Kind == Float {
-		return true
-	}
-	if l.Kind == String {
-		matched := regexpIsFloat.MatchString(l.Value)
-		if !matched {
-			return false
-		}
-		_, err := strconv.ParseFloat(l.Value, 64)
-		if err != nil {
-			return false
-		}
-		return true
-	}
-	return false
-}
-
-func (l *Literal) ValueAsFloat() float64 {
-	f, err := strconv.ParseFloat(l.Value, 64)
-	if err != nil {
-		log.Fatal("Can't parse as float: ", l.Value)
-	}
-	return f
-}
-
-func (l *Literal) ValueAsInt() int64 {
-	i, err := strconv.ParseInt(l.Value, 10, 64)
-	if err != nil {
-		log.Fatal("Can't parse as int: ", l.Value)
-	}
-	return i
-}
-
-func (l *Literal) ValueAsBool() bool {
-	b, err := strconv.ParseBool(l.Value)
-	if err != nil {
-		log.Fatal("Can't parse as bool: ", l.Value)
-	}
-	return b
 }
 
 func New(expr string) (Expr, error) {
@@ -186,47 +38,51 @@ func New(expr string) (Expr, error) {
 	return Expr{Expr: expr, Node: node}, nil
 }
 
-func (expr *Expr) EvalBool(vars map[string]Literal) (bool, error) {
-	var l Literal
+func (expr *Expr) EvalBool(vars map[string]*dlit.Literal) (bool, error) {
+	var l *dlit.Literal
 	inspector := func(n ast.Node) bool {
 		l = nodeToLiteral(vars, n)
 		return false
 	}
 	ast.Inspect(expr.Node, inspector)
-	if l.Kind == Bool {
-		return l.ValueAsBool(), nil
-	} else if l.Kind == Error {
-		return false, ErrInvalidExpr(l.Value)
+	if b, isBool := l.Bool(); isBool {
+		return b, nil
+	} else if l.IsError() {
+		return false, ErrInvalidExpr(l.String())
 	} else {
 		return false, ErrInvalidExpr("Expression doesn't return a bool")
 	}
 }
 
-func nodeToLiteral(vars map[string]Literal, n ast.Node) Literal {
-	var l Literal
-	var k Kind
+func nodeToLiteral(vars map[string]*dlit.Literal, n ast.Node) *dlit.Literal {
+	var l *dlit.Literal
+	var err error
 	switch x := n.(type) {
 	case *ast.BasicLit:
 		switch x.Kind {
 		case token.INT:
-			k = Int
-			l = Literal{Value: x.Value, Kind: k}
+			l, err = dlit.New(x.Value)
+			if err != nil {
+				l, _ = dlit.New(err)
+			}
 		case token.FLOAT:
-			k = Float
-			l = Literal{Value: x.Value, Kind: k}
+			l, err = dlit.New(x.Value)
+			if err != nil {
+				l, _ = dlit.New(err)
+			}
+
 		case token.STRING:
 			uc, err := strconv.Unquote(x.Value)
 			if err != nil {
-				log.Fatal(err)
+				l, _ = dlit.New(err)
 			}
-			k = String
-			l = Literal{Value: uc, Kind: k}
-		default:
-			k = Illegal
-			l = Literal{Value: "", Kind: k}
+			l, err = dlit.New(uc)
+			if err != nil {
+				l, _ = dlit.New(err)
+			}
 		}
 	case *ast.Ident:
-		l = Literal{Value: vars[x.Name].Value, Kind: vars[x.Name].Kind}
+		l = vars[x.Name]
 	case *ast.ParenExpr:
 		l = nodeToLiteral(vars, x.X)
 	case *ast.BinaryExpr:
@@ -241,8 +97,9 @@ func nodeToLiteral(vars map[string]Literal, n ast.Node) Literal {
 	return l
 }
 
-func evalBinaryExpr(lh Literal, rh Literal, op token.Token) Literal {
-	var r Literal
+func evalBinaryExpr(lh *dlit.Literal, rh *dlit.Literal,
+	op token.Token) *dlit.Literal {
+	var r *dlit.Literal
 
 	switch op {
 	case token.LSS:
@@ -258,123 +115,191 @@ func evalBinaryExpr(lh Literal, rh Literal, op token.Token) Literal {
 	case token.LAND:
 		r = opLand(lh, rh)
 	default:
-		err := ErrInvalidOp(op)
-		return newLiteralError(err)
+		r, _ = dlit.New(ErrInvalidOp(op))
 	}
 
 	return r
 }
 
-func opLss(lh Literal, rh Literal) Literal {
-	var b bool
-	switch true {
-	case lh.isInt() && rh.isInt():
-		b = lh.ValueAsInt() < rh.ValueAsInt()
-	case lh.isInt() && rh.isFloat():
-		b = lh.ValueAsInt() < int64(math.Ceil(rh.ValueAsFloat()))
-	case lh.isFloat() && rh.isInt():
-		b = int64(math.Floor(lh.ValueAsFloat())) < rh.ValueAsInt()
-	case lh.isFloat() && rh.isFloat():
-		b = lh.ValueAsFloat() < rh.ValueAsFloat()
-	default:
-		expected := []Kind{Int, Float}
-		got := []Kind{lh.Kind, rh.Kind}
-		err := ErrInvalidKinds{expected, got}
-		return newLiteralError(err)
+func literalToQuotedString(l *dlit.Literal) string {
+	_, isInt := l.Int()
+	if isInt {
+		return l.String()
 	}
-	return newLiteralBool(b)
+	_, isFloat := l.Float()
+	if isFloat {
+		return l.String()
+	}
+	_, isBool := l.Bool()
+	if isBool {
+		return l.String()
+	}
+	return fmt.Sprintf("\"%s\"", l.String())
 }
 
-func opLeq(lh Literal, rh Literal) Literal {
-	var b bool
-	switch true {
-	case lh.isInt() && rh.isInt():
-		b = lh.ValueAsInt() <= rh.ValueAsInt()
-	case lh.isInt() && rh.isFloat():
-		b = lh.ValueAsInt() <= int64(math.Floor(rh.ValueAsFloat()))
-	case lh.isFloat() && rh.isInt():
-		b = int64(math.Floor(lh.ValueAsFloat())) <= rh.ValueAsInt()
-	case lh.isFloat() && rh.isFloat():
-		b = lh.ValueAsFloat() <= rh.ValueAsFloat()
-	default:
-		expected := []Kind{Int, Float}
-		got := []Kind{lh.Kind, rh.Kind}
-		err := ErrInvalidKinds{expected, got}
-		return newLiteralError(err)
-	}
-	return newLiteralBool(b)
-}
-
-func opGtr(lh Literal, rh Literal) Literal {
-	var b bool
-	switch true {
-	case lh.isInt() && rh.isInt():
-		b = lh.ValueAsInt() > rh.ValueAsInt()
-	case lh.isInt() && rh.isFloat():
-		b = lh.ValueAsInt() > int64(math.Floor(rh.ValueAsFloat()))
-	case lh.isFloat() && rh.isInt():
-		b = int64(math.Ceil(lh.ValueAsFloat())) > rh.ValueAsInt()
-	case lh.isFloat() && rh.isFloat():
-		b = lh.ValueAsFloat() > rh.ValueAsFloat()
-	default:
-		expected := []Kind{Int, Float}
-		got := []Kind{lh.Kind, rh.Kind}
-		err := ErrInvalidKinds{expected, got}
-		return newLiteralError(err)
-	}
-	return newLiteralBool(b)
-}
-
-func opEql(lh Literal, rh Literal) Literal {
-	var b bool
-	switch true {
-	case lh.isInt() && rh.isInt():
-		b = lh.ValueAsInt() == rh.ValueAsInt()
-	case lh.isInt() && rh.isFloat():
-		fallthrough
-	case lh.isFloat() && rh.isInt():
-		fallthrough
-	case lh.isFloat() && rh.isFloat():
-		b = lh.ValueAsFloat() == rh.ValueAsFloat()
-	case lh.Kind == String && rh.Kind == String:
-		b = lh.Value == rh.Value
-	default:
-		b = false
-	}
-	return newLiteralBool(b)
-}
-
-func opAdd(lh Literal, rh Literal) Literal {
-	var r Literal
-	switch true {
-	case lh.isInt() && rh.isInt():
-		i := lh.ValueAsInt() + rh.ValueAsInt()
-		r = Literal{Value: strconv.FormatInt(i, 10), Kind: Int}
-	case lh.isInt() && rh.isFloat():
-		fallthrough
-	case lh.isFloat() && rh.isInt():
-		f := lh.ValueAsFloat() + rh.ValueAsFloat()
-		r = Literal{Value: strconv.FormatFloat(f, 'E', -1, 64), Kind: Float}
-	case lh.isFloat() && rh.isFloat():
-		f := lh.ValueAsFloat() + rh.ValueAsFloat()
-		r = Literal{Value: strconv.FormatFloat(f, 'E', -1, 64), Kind: Float}
-	default:
-		expected := []Kind{Int, Float}
-		got := []Kind{lh.Kind, rh.Kind}
-		err := ErrInvalidKinds{expected, got}
-		return newLiteralError(err)
-	}
+func makeErrInvalidExprLiteral(errFormattedMsg string, l1 *dlit.Literal,
+	l2 *dlit.Literal) *dlit.Literal {
+	l1s := literalToQuotedString(l1)
+	l2s := literalToQuotedString(l2)
+	err := ErrInvalidExpr(fmt.Sprintf(errFormattedMsg, l1s, l2s))
+	r, _ := dlit.New(err)
 	return r
 }
 
-func opLand(lh Literal, rh Literal) Literal {
-	if lh.Kind != Bool {
-		err := ErrInvalidKind{Bool, lh.Kind}
-		return newLiteralError(err)
+func checkNewLitError(l *dlit.Literal, err error, errFormattedMsg string,
+	l1 *dlit.Literal, l2 *dlit.Literal) *dlit.Literal {
+	if err != nil {
+		return makeErrInvalidExprLiteral(errFormattedMsg, l1, l2)
 	}
-	if rh.Kind != Bool {
-		err := ErrInvalidKind{Bool, rh.Kind}
-		return newLiteralError(err)
+	return l
+}
+
+func opLss(lh *dlit.Literal, rh *dlit.Literal) *dlit.Literal {
+	errMsg := "Invalid comparison: %s < %s"
+
+	lhInt, lhIsInt := lh.Int()
+	rhInt, rhIsInt := rh.Int()
+	if lhIsInt && rhIsInt {
+		l, err := dlit.New(lhInt < rhInt)
+		return checkNewLitError(l, err, errMsg, lh, rh)
 	}
-	return newLiteralBool(lh.ValueAsBool() && rh.ValueAsBool())
+
+	rhFloat, rhIsFloat := rh.Float()
+	if lhIsInt && rhIsFloat {
+		l, err := dlit.New(lhInt < int64(math.Ceil(rhFloat)))
+		return checkNewLitError(l, err, errMsg, lh, rh)
+	}
+
+	lhFloat, lhIsFloat := lh.Float()
+	if lhIsFloat && rhIsInt {
+		l, err := dlit.New(int64(math.Floor(lhFloat)) < rhInt)
+		return checkNewLitError(l, err, errMsg, lh, rh)
+	}
+
+	if lhIsFloat && rhIsFloat {
+		l, err := dlit.New(lhFloat < rhFloat)
+		return checkNewLitError(l, err, errMsg, lh, rh)
+	}
+
+	return makeErrInvalidExprLiteral(errMsg, lh, rh)
+}
+
+func opLeq(lh *dlit.Literal, rh *dlit.Literal) *dlit.Literal {
+	errMsg := "Invalid comparison: %s <= %s"
+	lhInt, lhIsInt := lh.Int()
+	rhInt, rhIsInt := rh.Int()
+	if lhIsInt && rhIsInt {
+		l, err := dlit.New(lhInt <= rhInt)
+		return checkNewLitError(l, err, errMsg, lh, rh)
+	}
+
+	rhFloat, rhIsFloat := rh.Float()
+	if lhIsInt && rhIsFloat {
+		l, err := dlit.New(lhInt <= int64(math.Floor(rhFloat)))
+		return checkNewLitError(l, err, errMsg, lh, rh)
+	}
+
+	lhFloat, lhIsFloat := lh.Float()
+	if lhIsFloat && rhIsInt {
+		l, err := dlit.New(int64(math.Floor(lhFloat)) <= rhInt)
+		return checkNewLitError(l, err, errMsg, lh, rh)
+	}
+
+	if lhIsFloat && rhIsFloat {
+		l, err := dlit.New(lhFloat <= rhFloat)
+		return checkNewLitError(l, err, errMsg, lh, rh)
+	}
+
+	return makeErrInvalidExprLiteral(errMsg, lh, rh)
+}
+
+func opGtr(lh *dlit.Literal, rh *dlit.Literal) *dlit.Literal {
+	errMsg := "Invalid comparison: %s > %s"
+
+	lhInt, lhIsInt := lh.Int()
+	rhInt, rhIsInt := rh.Int()
+	if lhIsInt && rhIsInt {
+		l, err := dlit.New(lhInt > rhInt)
+		return checkNewLitError(l, err, errMsg, lh, rh)
+	}
+
+	rhFloat, rhIsFloat := rh.Float()
+	if lhIsInt && rhIsFloat {
+		l, err := dlit.New(lhInt > int64(math.Floor(rhFloat)))
+		return checkNewLitError(l, err, errMsg, lh, rh)
+	}
+
+	lhFloat, lhIsFloat := lh.Float()
+	if lhIsFloat && rhIsInt {
+		l, err := dlit.New(int64(math.Ceil(lhFloat)) > rhInt)
+		return checkNewLitError(l, err, errMsg, lh, rh)
+	}
+
+	if lhIsFloat && rhIsFloat {
+		l, err := dlit.New(lhFloat > rhFloat)
+		return checkNewLitError(l, err, errMsg, lh, rh)
+	}
+
+	return makeErrInvalidExprLiteral(errMsg, lh, rh)
+}
+
+func opEql(lh *dlit.Literal, rh *dlit.Literal) *dlit.Literal {
+	errMsg := "Invalid comparison: %s == %s"
+
+	lhInt, lhIsInt := lh.Int()
+	rhInt, rhIsInt := rh.Int()
+	if lhIsInt && rhIsInt {
+		l, err := dlit.New(lhInt == rhInt)
+		return checkNewLitError(l, err, errMsg, lh, rh)
+	}
+
+	lhFloat, lhIsFloat := lh.Float()
+	rhFloat, rhIsFloat := rh.Float()
+	if lhIsFloat && rhIsFloat {
+		l, err := dlit.New(lhFloat == rhFloat)
+		return checkNewLitError(l, err, errMsg, lh, rh)
+	}
+
+	// Don't compare bools as otherwise with the way that floats or ints
+	// are cast to bools you would find that "True" == 1.0 because they would
+	// both convert to true bools
+
+	if lh.IsError() || rh.IsError() {
+		return makeErrInvalidExprLiteral(errMsg, lh, rh)
+	}
+
+	l, err := dlit.New(lh.String() == rh.String())
+	return checkNewLitError(l, err, errMsg, lh, rh)
+}
+
+func opAdd(lh *dlit.Literal, rh *dlit.Literal) *dlit.Literal {
+	errMsg := "Invalid operation: %s + %s"
+
+	lhInt, lhIsInt := lh.Int()
+	rhInt, rhIsInt := rh.Int()
+	if lhIsInt && rhIsInt {
+		l, err := dlit.New(lhInt + rhInt)
+		return checkNewLitError(l, err, errMsg, lh, rh)
+	}
+
+	lhFloat, lhIsFloat := lh.Float()
+	rhFloat, rhIsFloat := rh.Float()
+	if lhIsFloat && rhIsFloat {
+		l, err := dlit.New(lhFloat + rhFloat)
+		return checkNewLitError(l, err, errMsg, lh, rh)
+	}
+	return makeErrInvalidExprLiteral(errMsg, lh, rh)
+}
+
+func opLand(lh *dlit.Literal, rh *dlit.Literal) *dlit.Literal {
+	errMsg := "Invalid operation: %s && %s"
+
+	lhBool, lhIsBool := lh.Bool()
+	rhBool, rhIsBool := rh.Bool()
+	if lhIsBool && rhIsBool {
+		l, err := dlit.New(lhBool && rhBool)
+		return checkNewLitError(l, err, errMsg, lh, rh)
+	}
+
+	return makeErrInvalidExprLiteral(errMsg, lh, rh)
 }
