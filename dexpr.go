@@ -30,12 +30,12 @@ func (e ErrInvalidOp) Error() string {
 	return fmt.Sprintf("Invalid operator: %q", token.Token(e))
 }
 
-func New(expr string) (Expr, error) {
+func New(expr string) (*Expr, error) {
 	node, err := parser.ParseExpr(expr)
 	if err != nil {
-		return Expr{}, err
+		return &Expr{}, err
 	}
-	return Expr{Expr: expr, Node: node}, nil
+	return &Expr{Expr: expr, Node: node}, nil
 }
 
 func (expr *Expr) EvalBool(vars map[string]*dlit.Literal) (bool, error) {
