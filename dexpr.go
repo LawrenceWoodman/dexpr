@@ -56,39 +56,40 @@ func (expr *Expr) EvalBool(vars map[string]*dlit.Literal) (bool, error) {
 
 func nodeToLiteral(vars map[string]*dlit.Literal, n ast.Node) *dlit.Literal {
 	var l *dlit.Literal
-	var err error
+	var exists bool
+
 	switch x := n.(type) {
 	case *ast.BasicLit:
 		switch x.Kind {
 		case token.INT:
-			l, err = dlit.New(x.Value)
-			if err != nil {
-				l, _ = dlit.New(err)
-			}
+			l, _ = dlit.New(x.Value)
 		case token.FLOAT:
-			l, err = dlit.New(x.Value)
-			if err != nil {
-				l, _ = dlit.New(err)
-			}
-
+			l, _ = dlit.New(x.Value)
 		case token.STRING:
 			uc, err := strconv.Unquote(x.Value)
 			if err != nil {
-				l, _ = dlit.New(err)
-			}
-			l, err = dlit.New(uc)
-			if err != nil {
-				l, _ = dlit.New(err)
+				l = makeErrInvalidExprLiteral(err.Error())
+			} else {
+				l, _ = dlit.New(uc)
 			}
 		}
 	case *ast.Ident:
-		l = vars[x.Name]
+		if l, exists = vars[x.Name]; !exists {
+			l = makeErrInvalidExprLiteral(
+				fmt.Sprintf("Variable doesn't exist: %s", x.Name))
+		}
 	case *ast.ParenExpr:
 		l = nodeToLiteral(vars, x.X)
 	case *ast.BinaryExpr:
 		lh := nodeToLiteral(vars, x.X)
 		rh := nodeToLiteral(vars, x.Y)
-		l = evalBinaryExpr(lh, rh, x.Op)
+		if lh.IsError() {
+			l = lh
+		} else if rh.IsError() {
+			l = rh
+		} else {
+			l = evalBinaryExpr(lh, rh, x.Op)
+		}
 	case *ast.CallExpr:
 		fmt.Printf("CallExpr - expr: %q, args: %q\n", x.Fun, x.Args)
 	default:
@@ -137,19 +138,25 @@ func literalToQuotedString(l *dlit.Literal) string {
 	return fmt.Sprintf("\"%s\"", l.String())
 }
 
-func makeErrInvalidExprLiteral(errFormattedMsg string, l1 *dlit.Literal,
+func makeErrInvalidExprLiteral(msg string) *dlit.Literal {
+	var l *dlit.Literal
+	var err error
+	err = ErrInvalidExpr(msg)
+	l, _ = dlit.New(err)
+	return l
+}
+
+func makeErrInvalidExprLiteralFmt(errFormattedMsg string, l1 *dlit.Literal,
 	l2 *dlit.Literal) *dlit.Literal {
 	l1s := literalToQuotedString(l1)
 	l2s := literalToQuotedString(l2)
-	err := ErrInvalidExpr(fmt.Sprintf(errFormattedMsg, l1s, l2s))
-	r, _ := dlit.New(err)
-	return r
+	return makeErrInvalidExprLiteral(fmt.Sprintf(errFormattedMsg, l1s, l2s))
 }
 
 func checkNewLitError(l *dlit.Literal, err error, errFormattedMsg string,
 	l1 *dlit.Literal, l2 *dlit.Literal) *dlit.Literal {
 	if err != nil {
-		return makeErrInvalidExprLiteral(errFormattedMsg, l1, l2)
+		return makeErrInvalidExprLiteralFmt(errFormattedMsg, l1, l2)
 	}
 	return l
 }
@@ -181,7 +188,7 @@ func opLss(lh *dlit.Literal, rh *dlit.Literal) *dlit.Literal {
 		return checkNewLitError(l, err, errMsg, lh, rh)
 	}
 
-	return makeErrInvalidExprLiteral(errMsg, lh, rh)
+	return makeErrInvalidExprLiteralFmt(errMsg, lh, rh)
 }
 
 func opLeq(lh *dlit.Literal, rh *dlit.Literal) *dlit.Literal {
@@ -210,7 +217,7 @@ func opLeq(lh *dlit.Literal, rh *dlit.Literal) *dlit.Literal {
 		return checkNewLitError(l, err, errMsg, lh, rh)
 	}
 
-	return makeErrInvalidExprLiteral(errMsg, lh, rh)
+	return makeErrInvalidExprLiteralFmt(errMsg, lh, rh)
 }
 
 func opGtr(lh *dlit.Literal, rh *dlit.Literal) *dlit.Literal {
@@ -240,7 +247,7 @@ func opGtr(lh *dlit.Literal, rh *dlit.Literal) *dlit.Literal {
 		return checkNewLitError(l, err, errMsg, lh, rh)
 	}
 
-	return makeErrInvalidExprLiteral(errMsg, lh, rh)
+	return makeErrInvalidExprLiteralFmt(errMsg, lh, rh)
 }
 
 func opEql(lh *dlit.Literal, rh *dlit.Literal) *dlit.Literal {
@@ -265,7 +272,7 @@ func opEql(lh *dlit.Literal, rh *dlit.Literal) *dlit.Literal {
 	// both convert to true bools
 
 	if lh.IsError() || rh.IsError() {
-		return makeErrInvalidExprLiteral(errMsg, lh, rh)
+		return makeErrInvalidExprLiteralFmt(errMsg, lh, rh)
 	}
 
 	l, err := dlit.New(lh.String() == rh.String())
@@ -288,7 +295,7 @@ func opAdd(lh *dlit.Literal, rh *dlit.Literal) *dlit.Literal {
 		l, err := dlit.New(lhFloat + rhFloat)
 		return checkNewLitError(l, err, errMsg, lh, rh)
 	}
-	return makeErrInvalidExprLiteral(errMsg, lh, rh)
+	return makeErrInvalidExprLiteralFmt(errMsg, lh, rh)
 }
 
 func opLand(lh *dlit.Literal, rh *dlit.Literal) *dlit.Literal {
@@ -301,5 +308,5 @@ func opLand(lh *dlit.Literal, rh *dlit.Literal) *dlit.Literal {
 		return checkNewLitError(l, err, errMsg, lh, rh)
 	}
 
-	return makeErrInvalidExprLiteral(errMsg, lh, rh)
+	return makeErrInvalidExprLiteralFmt(errMsg, lh, rh)
 }

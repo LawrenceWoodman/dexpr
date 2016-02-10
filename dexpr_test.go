@@ -178,6 +178,10 @@ func TestEvalBool_errors(t *testing.T) {
 			ErrInvalidExpr("Invalid comparison: \"world\" > 2.1")},
 		{"10 & 101", false, ErrInvalidExpr("Invalid operator: \"&\"")},
 		{"7 && 9", false, ErrInvalidExpr("Invalid operation: 7 && 9")},
+		{"total > 20", false,
+			ErrInvalidExpr("Variable doesn't exist: total")},
+		{"20 < total", false,
+			ErrInvalidExpr("Variable doesn't exist: total")},
 	}
 	vars := map[string]*dlit.Literal{}
 	for _, c := range cases {
