@@ -54,6 +54,10 @@ func (expr *Expr) EvalBool(vars map[string]*dlit.Literal) (bool, error) {
 	}
 }
 
+func (expr *Expr) String() string {
+	return expr.Expr
+}
+
 func nodeToLiteral(vars map[string]*dlit.Literal, n ast.Node) *dlit.Literal {
 	var l *dlit.Literal
 	var exists bool

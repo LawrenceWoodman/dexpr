@@ -165,6 +165,27 @@ func TestEvalBool_noErrors(t *testing.T) {
 	}
 }
 
+func TestString(t *testing.T) {
+	cases := []string{
+		"1 == 1",
+		"2.5 == 2.5",
+		"1.0 == 1",
+		"numStr == 3",
+		"\"true\" == \"TRUE\"",
+		"5 + 1.5 > 6",
+	}
+	for _, c := range cases {
+		dexpr, err := New(c)
+		if err != nil {
+			t.Errorf("New(%s) err: %s", c, err)
+		}
+		got := dexpr.String()
+		if got != c {
+			t.Errorf("String() got %s, want: %s", got, c)
+		}
+	}
+}
+
 func TestEvalBool_errors(t *testing.T) {
 	cases := []struct {
 		in        string
