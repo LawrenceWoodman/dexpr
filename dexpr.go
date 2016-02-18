@@ -38,13 +38,18 @@ func New(expr string) (*Expr, error) {
 	return &Expr{Expr: expr, Node: node}, nil
 }
 
-func (expr *Expr) EvalBool(vars map[string]*dlit.Literal) (bool, error) {
+func (expr *Expr) Eval(vars map[string]*dlit.Literal) *dlit.Literal {
 	var l *dlit.Literal
 	inspector := func(n ast.Node) bool {
 		l = nodeToLiteral(vars, n)
 		return false
 	}
 	ast.Inspect(expr.Node, inspector)
+	return l
+}
+
+func (expr *Expr) EvalBool(vars map[string]*dlit.Literal) (bool, error) {
+	l := expr.Eval(vars)
 	if b, isBool := l.Bool(); isBool {
 		return b, nil
 	} else if l.IsError() {

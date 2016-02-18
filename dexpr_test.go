@@ -6,6 +6,36 @@ import (
 	"testing"
 )
 
+func TestEval(t *testing.T) {
+	cases := []struct {
+		in   string
+		want *dlit.Literal
+	}{
+		{"1 == 1", makeLit(true)},
+		{"1 == 2", makeLit(false)},
+		{"2.6 + 2.5", makeLit(5.1)},
+		{"a + numStrB", makeLit(7)},
+
+		/*
+			{"round(5.567, 2)", makeLit(5.57)},
+		*/
+	}
+	vars := map[string]*dlit.Literal{
+		"a":       makeLit(4),
+		"numStrB": makeLit("3"),
+	}
+	for _, c := range cases {
+		dexpr, err := New(c.in)
+		if err != nil {
+			t.Errorf("New(%s) err: %s", c.in, err)
+		}
+		got := dexpr.Eval(vars)
+		if c.want.IsError() || got.String() != c.want.String() {
+			t.Errorf("Eval(vars) in: %q, got: %s, want %s", c.in, got, c.want)
+		}
+	}
+}
+
 func TestEvalBool_noErrors(t *testing.T) {
 	cases := []struct {
 		in   string
@@ -155,6 +185,9 @@ func TestEvalBool_noErrors(t *testing.T) {
 	}
 	for _, c := range cases {
 		dexpr, err := New(c.in)
+		if err != nil {
+			t.Errorf("New(%s) err: %s", c.in, err)
+		}
 		got, err := dexpr.EvalBool(vars)
 		if err != nil {
 			t.Errorf("EvalBool(vars, %q) err == %q", c.in, err)
@@ -207,6 +240,9 @@ func TestEvalBool_errors(t *testing.T) {
 	vars := map[string]*dlit.Literal{}
 	for _, c := range cases {
 		dexpr, err := New(c.in)
+		if err != nil {
+			t.Errorf("New(%s) err: %s", c.in, err)
+		}
 		got, err := dexpr.EvalBool(vars)
 		if got != c.want {
 			t.Errorf("EvalBool(vars, %q) == %q, want %q", c.in, got, c.want)
