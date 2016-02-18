@@ -120,10 +120,12 @@ func evalBinaryExpr(lh *dlit.Literal, rh *dlit.Literal,
 		r = opEql(lh, rh)
 	case token.GTR:
 		r = opGtr(lh, rh)
-	case token.ADD:
-		r = opAdd(lh, rh)
 	case token.LAND:
 		r = opLand(lh, rh)
+	case token.ADD:
+		r = opAdd(lh, rh)
+	case token.QUO:
+		r = opQuo(lh, rh)
 	default:
 		r, _ = dlit.New(ErrInvalidOp(op))
 	}
@@ -288,6 +290,19 @@ func opEql(lh *dlit.Literal, rh *dlit.Literal) *dlit.Literal {
 	return checkNewLitError(l, err, errMsg, lh, rh)
 }
 
+func opLand(lh *dlit.Literal, rh *dlit.Literal) *dlit.Literal {
+	errMsg := "Invalid operation: %s && %s"
+
+	lhBool, lhIsBool := lh.Bool()
+	rhBool, rhIsBool := rh.Bool()
+	if lhIsBool && rhIsBool {
+		l, err := dlit.New(lhBool && rhBool)
+		return checkNewLitError(l, err, errMsg, lh, rh)
+	}
+
+	return makeErrInvalidExprLiteralFmt(errMsg, lh, rh)
+}
+
 func opAdd(lh *dlit.Literal, rh *dlit.Literal) *dlit.Literal {
 	errMsg := "Invalid operation: %s + %s"
 
@@ -307,15 +322,18 @@ func opAdd(lh *dlit.Literal, rh *dlit.Literal) *dlit.Literal {
 	return makeErrInvalidExprLiteralFmt(errMsg, lh, rh)
 }
 
-func opLand(lh *dlit.Literal, rh *dlit.Literal) *dlit.Literal {
-	errMsg := "Invalid operation: %s && %s"
+func opQuo(lh *dlit.Literal, rh *dlit.Literal) *dlit.Literal {
+	errMsg := "Invalid operation: %s / %s"
 
-	lhBool, lhIsBool := lh.Bool()
-	rhBool, rhIsBool := rh.Bool()
-	if lhIsBool && rhIsBool {
-		l, err := dlit.New(lhBool && rhBool)
+	lhFloat, lhIsFloat := lh.Float()
+	rhFloat, rhIsFloat := rh.Float()
+	if lhIsFloat && rhIsFloat {
+		if rhFloat == 0.0 {
+			errMsg := "Invalid operation: %s / %s (Divide by zero)"
+			return makeErrInvalidExprLiteralFmt(errMsg, lh, rh)
+		}
+		l, err := dlit.New(lhFloat / rhFloat)
 		return checkNewLitError(l, err, errMsg, lh, rh)
 	}
-
 	return makeErrInvalidExprLiteralFmt(errMsg, lh, rh)
 }

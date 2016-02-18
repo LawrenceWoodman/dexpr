@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestEval(t *testing.T) {
+func TestEval_noerrors(t *testing.T) {
 	cases := []struct {
 		in   string
 		want *dlit.Literal
@@ -15,6 +15,8 @@ func TestEval(t *testing.T) {
 		{"1 == 2", makeLit(false)},
 		{"2.6 + 2.5", makeLit(5.1)},
 		{"a + numStrB", makeLit(7)},
+		{"8/4", makeLit(2)},
+		{"1/4", makeLit(0.25)},
 
 		/*
 			{"round(5.567, 2)", makeLit(5.57)},
@@ -30,8 +32,39 @@ func TestEval(t *testing.T) {
 			t.Errorf("New(%s) err: %s", c.in, err)
 		}
 		got := dexpr.Eval(vars)
-		if c.want.IsError() || got.String() != c.want.String() {
-			t.Errorf("Eval(vars) in: %q, got: %s, want %s", c.in, got, c.want)
+		if got.IsError() || got.String() != c.want.String() {
+			t.Errorf("Eval(vars) in: %q, got: %s, want: %s", c.in, got, c.want)
+		}
+	}
+}
+
+func TestEval_errors(t *testing.T) {
+	cases := []struct {
+		in   string
+		want *dlit.Literal
+	}{
+		{"8/bob", makeLit(
+			ErrInvalidExpr("Variable doesn't exist: bob")),
+		},
+		{"8/(1 == 1)", makeLit(
+			ErrInvalidExpr("Invalid operation: 8 / true")),
+		},
+		{"8/0", makeLit(
+			ErrInvalidExpr("Invalid operation: 8 / 0 (Divide by zero)")),
+		},
+	}
+	vars := map[string]*dlit.Literal{
+		"a":       makeLit(4),
+		"numStrB": makeLit("3"),
+	}
+	for _, c := range cases {
+		dexpr, err := New(c.in)
+		if err != nil {
+			t.Errorf("New(%s) err: %s", c.in, err)
+		}
+		got := dexpr.Eval(vars)
+		if got.IsError() != c.want.IsError() || got.String() != c.want.String() {
+			t.Errorf("Eval(vars) in: %q, got: %s, want: %s", c.in, got, c.want)
 		}
 	}
 }
