@@ -1,8 +1,10 @@
 package dexpr
 
 import (
+	"errors"
 	"fmt"
 	"github.com/lawrencewoodman/dlit"
+	"math"
 	"testing"
 )
 
@@ -14,24 +16,27 @@ func TestEval_noerrors(t *testing.T) {
 		{"1 == 1", makeLit(true)},
 		{"1 == 2", makeLit(false)},
 		{"2.6 + 2.5", makeLit(5.1)},
+		{"-2 + -2", makeLit(-4)},
+		{"-2.5 + -2.6", makeLit(-5.1)},
 		{"a + numStrB", makeLit(7)},
 		{"8/4", makeLit(2)},
 		{"1/4", makeLit(0.25)},
-
-		/*
-			{"round(5.567, 2)", makeLit(5.57)},
-		*/
+		{"roundto(5.567, 2)", makeLit(5.57)},
+		{"roundto(-17.5, 0)", makeLit(-17)},
 	}
 	vars := map[string]*dlit.Literal{
 		"a":       makeLit(4),
 		"numStrB": makeLit("3"),
+	}
+	funcs := map[string]CallFun{
+		"roundto": roundTo,
 	}
 	for _, c := range cases {
 		dexpr, err := New(c.in)
 		if err != nil {
 			t.Errorf("New(%s) err: %s", c.in, err)
 		}
-		got := dexpr.Eval(vars)
+		got := dexpr.Eval(vars, funcs)
 		if got.IsError() || got.String() != c.want.String() {
 			t.Errorf("Eval(vars) in: %q, got: %s, want: %s", c.in, got, c.want)
 		}
@@ -52,17 +57,39 @@ func TestEval_errors(t *testing.T) {
 		{"8/0", makeLit(
 			ErrInvalidExpr("Invalid operation: 8 / 0 (Divide by zero)")),
 		},
+		{"bob(5.567, 2)", makeLit(
+			ErrInvalidExpr("Function doesn't exist: bob")),
+		},
+		{"9223372036854775807 + 9223372036854775807", makeLit(
+			ErrInvalidExpr("Invalid operation: 9223372036854775807 + 9223372036854775807, Overflow")),
+		},
+		{fmt.Sprintf("%d+1", int64(math.MaxInt64)), makeLit(
+			ErrInvalidExpr("Invalid operation: 9223372036854775807 + 1, Overflow")),
+		},
+		/* TODO: implement this
+		{fmt.Sprintf("%f+1", float64(math.MaxFloat64)), makeLit(
+			ErrInvalidExpr("Invalid operation: 9223372036854775807 + 1, Overflow")),
+		},
+		{fmt.Sprintf("%d-1", int64(math.MinInt64)), makeLit(
+			ErrInvalidExpr("Invalid operation: 8 / 0 (Divide by zero)")),
+		},
+		*/
+		// TODO: Add test for overflow - largest int divided by 0.5
+		// TODO: Add test for overflow - largest float divided by 0.5
 	}
 	vars := map[string]*dlit.Literal{
 		"a":       makeLit(4),
 		"numStrB": makeLit("3"),
+	}
+	funcs := map[string]CallFun{
+		"roundto": roundTo,
 	}
 	for _, c := range cases {
 		dexpr, err := New(c.in)
 		if err != nil {
 			t.Errorf("New(%s) err: %s", c.in, err)
 		}
-		got := dexpr.Eval(vars)
+		got := dexpr.Eval(vars, funcs)
 		if got.IsError() != c.want.IsError() || got.String() != c.want.String() {
 			t.Errorf("Eval(vars) in: %q, got: %s, want: %s", c.in, got, c.want)
 		}
@@ -199,6 +226,8 @@ func TestEvalBool_noErrors(t *testing.T) {
 		{"9 > 8 && 2 < 3 && 7 > 7", false},
 		{"9 + (8 + 2) > 18", true},
 		{"9 + (8 + 2) > 19", false},
+		{"roundto(8+2.25, 1) == 10.3", true},
+		{"roundto(8+2.25, 1) == 10.25", false},
 
 		/*
 			{"isFrom(5)", true},
@@ -216,12 +245,15 @@ func TestEvalBool_noErrors(t *testing.T) {
 		"numStrC": makeLit("4.5"),
 		"numStrD": makeLit("3.5"),
 	}
+	funcs := map[string]CallFun{
+		"roundto": roundTo,
+	}
 	for _, c := range cases {
 		dexpr, err := New(c.in)
 		if err != nil {
 			t.Errorf("New(%s) err: %s", c.in, err)
 		}
-		got, err := dexpr.EvalBool(vars)
+		got, err := dexpr.EvalBool(vars, funcs)
 		if err != nil {
 			t.Errorf("EvalBool(vars, %q) err == %q", c.in, err)
 		}
@@ -269,14 +301,17 @@ func TestEvalBool_errors(t *testing.T) {
 			ErrInvalidExpr("Variable doesn't exist: total")},
 		{"20 < total", false,
 			ErrInvalidExpr("Variable doesn't exist: total")},
+		{"bob(8+2.257) == 7", false,
+			ErrInvalidExpr("Function doesn't exist: bob")},
 	}
 	vars := map[string]*dlit.Literal{}
+	funcs := map[string]CallFun{}
 	for _, c := range cases {
 		dexpr, err := New(c.in)
 		if err != nil {
 			t.Errorf("New(%s) err: %s", c.in, err)
 		}
-		got, err := dexpr.EvalBool(vars)
+		got, err := dexpr.EvalBool(vars, funcs)
 		if got != c.want {
 			t.Errorf("EvalBool(vars, %q) == %q, want %q", c.in, got, c.want)
 		}
@@ -290,10 +325,34 @@ func TestEvalBool_errors(t *testing.T) {
 	}
 }
 
+/**********************************
+ *    Helper functions
+ **********************************/
+
 func makeLit(v interface{}) *dlit.Literal {
 	l, err := dlit.New(v)
 	if err != nil {
 		panic(fmt.Sprintf("MakeLit(%q) gave err: %q", v, err))
 	}
 	return l
+}
+
+func roundTo(args []*dlit.Literal) (*dlit.Literal, error) {
+	if len(args) > 2 {
+		err := errors.New("Too many arguments")
+		return makeLit(err), err
+	}
+	x, isFloat := args[0].Float()
+	if !isFloat {
+		err := errors.New("Can't convert to float")
+		return makeLit(err), err
+	}
+	p, isInt := args[1].Int()
+	if !isInt {
+		err := errors.New("Can't convert to int")
+		return makeLit(err), err
+	}
+	// This uses round half-up to tie-break
+	shift := math.Pow(10, float64(p))
+	return makeLit(math.Floor(.5+x*shift) / shift), nil
 }
