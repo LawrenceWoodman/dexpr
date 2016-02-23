@@ -168,6 +168,8 @@ func evalBinaryExpr(lh *dlit.Literal, rh *dlit.Literal,
 		r = opLand(lh, rh)
 	case token.ADD:
 		r = opAdd(lh, rh)
+	case token.MUL:
+		r = opMul(lh, rh)
 	case token.QUO:
 		r = opQuo(lh, rh)
 	default:
@@ -381,16 +383,57 @@ func opAdd(lh *dlit.Literal, rh *dlit.Literal) *dlit.Literal {
 	return makeErrInvalidExprLiteralFmt(errMsg, lh, rh)
 }
 
-func opQuo(lh *dlit.Literal, rh *dlit.Literal) *dlit.Literal {
-	errMsg := "Invalid operation: %s / %s"
+func opMul(lh *dlit.Literal, rh *dlit.Literal) *dlit.Literal {
+	errMsg := "Invalid operation: %s * %s"
+	lhInt, lhIsInt := lh.Int()
+	rhInt, rhIsInt := rh.Int()
+	if lhIsInt && rhIsInt {
+		// Overflow detection inspired by suggestion from Rob Pike on Go-nuts group:
+		//   https://groups.google.com/d/msg/Golang-nuts/h5oSN5t3Au4/KaNQREhZh0QJ
+		if lhInt == 0 || rhInt == 0 || lhInt == 1 || rhInt == 1 {
+			l, err := dlit.New(lhInt * rhInt)
+			return checkNewLitError(l, err, errMsg, lh, rh)
+		}
+		if lhInt == math.MinInt64 || rhInt == math.MinInt64 {
+			thisErrMsg := fmt.Sprintf("%s (Underflow/Overflow)", errMsg)
+			return makeErrInvalidExprLiteralFmt(thisErrMsg, lh, rh)
+		}
+		r := lhInt * rhInt
+		if r/rhInt != lhInt {
+			thisErrMsg := fmt.Sprintf("%s (Underflow/Overflow)", errMsg)
+			return makeErrInvalidExprLiteralFmt(thisErrMsg, lh, rh)
+		}
+		l, err := dlit.New(r)
+		return checkNewLitError(l, err, errMsg, lh, rh)
+	}
 
 	lhFloat, lhIsFloat := lh.Float()
 	rhFloat, rhIsFloat := rh.Float()
 	if lhIsFloat && rhIsFloat {
-		if rhFloat == 0.0 {
-			errMsg := "Invalid operation: %s / %s (Divide by zero)"
-			return makeErrInvalidExprLiteralFmt(errMsg, lh, rh)
-		}
+		l, err := dlit.New(lhFloat * rhFloat)
+		return checkNewLitError(l, err, errMsg, lh, rh)
+	}
+	return makeErrInvalidExprLiteralFmt(errMsg, lh, rh)
+}
+
+func opQuo(lh *dlit.Literal, rh *dlit.Literal) *dlit.Literal {
+	errMsg := "Invalid operation: %s / %s"
+
+	lhInt, lhIsInt := lh.Int()
+	rhInt, rhIsInt := rh.Int()
+
+	if rhIsInt && rhInt == 0 {
+		errMsg := "Invalid operation: %s / %s (Divide by zero)"
+		return makeErrInvalidExprLiteralFmt(errMsg, lh, rh)
+	}
+	if lhIsInt && rhIsInt && lhInt%rhInt == 0 {
+		l, err := dlit.New(lhInt / rhInt)
+		return checkNewLitError(l, err, errMsg, lh, rh)
+	}
+
+	lhFloat, lhIsFloat := lh.Float()
+	rhFloat, rhIsFloat := rh.Float()
+	if lhIsFloat && rhIsFloat {
 		l, err := dlit.New(lhFloat / rhFloat)
 		return checkNewLitError(l, err, errMsg, lh, rh)
 	}

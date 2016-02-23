@@ -21,6 +21,15 @@ func TestEval_noerrors(t *testing.T) {
 		{"a + numStrB", makeLit(7)},
 		{"8/4", makeLit(2)},
 		{"1/4", makeLit(0.25)},
+		{"8*4", makeLit(32)},
+		{fmt.Sprintf("%d * 1", int64(math.MinInt64)),
+			makeLit(int64(math.MinInt64))},
+		{fmt.Sprintf("%d * 1", int64(math.MaxInt64)),
+			makeLit(int64(math.MaxInt64))},
+		{fmt.Sprintf("(%d / 2) * 2", int64(math.MinInt64)),
+			makeLit(int64(math.MinInt64))},
+		{fmt.Sprintf("((%d+-1) / 2) * 2", int64(math.MaxInt64)),
+			makeLit(int64(math.MaxInt64) - 1)},
 
 		/* Tests that unary negation works properly */
 		{fmt.Sprintf("%d + 0", int64(math.MinInt64)),
@@ -73,6 +82,12 @@ func TestEval_errors(t *testing.T) {
 		},
 		{fmt.Sprintf("%d + -1", int64(math.MinInt64)), makeLit(
 			ErrInvalidExpr("Invalid operation: -9223372036854775808 + -1 (Underflow/Overflow)")),
+		},
+		{fmt.Sprintf("%d*2", int64(math.MaxInt64)), makeLit(
+			ErrInvalidExpr("Invalid operation: 9223372036854775807 * 2 (Underflow/Overflow)")),
+		},
+		{fmt.Sprintf("%d*2", int64(math.MinInt64)), makeLit(
+			ErrInvalidExpr("Invalid operation: -9223372036854775808 * 2 (Underflow/Overflow)")),
 		},
 		/* TODO: implement this
 		{fmt.Sprintf("%f+1", float64(math.MaxFloat64)), makeLit(
