@@ -360,13 +360,12 @@ func opLand(lh *dlit.Literal, rh *dlit.Literal) *dlit.Literal {
 
 func opAdd(lh *dlit.Literal, rh *dlit.Literal) *dlit.Literal {
 	errMsg := "Invalid operation: %s + %s"
-
 	lhInt, lhIsInt := lh.Int()
 	rhInt, rhIsInt := rh.Int()
 	if lhIsInt && rhIsInt {
 		r := lhInt + rhInt
 		if (r < lhInt) != (rhInt < 0) {
-			thisErrMsg := fmt.Sprintf("%s, Overflow", errMsg)
+			thisErrMsg := fmt.Sprintf("%s (Underflow/Overflow)", errMsg)
 			return makeErrInvalidExprLiteralFmt(thisErrMsg, lh, rh)
 		}
 		l, err := dlit.New(r)
@@ -404,6 +403,13 @@ func opNeg(l *dlit.Literal) *dlit.Literal {
 	lInt, lIsInt := l.Int()
 	if lIsInt {
 		r, err := dlit.New(0 - lInt)
+		return checkNewLitError(r, err, errMsg, l, l)
+	}
+
+	strMinInt64 := strconv.FormatInt(int64(math.MinInt64), 10)
+	posMinInt64 := strMinInt64[1:]
+	if l.String() == posMinInt64 {
+		r, err := dlit.New(int64(math.MinInt64))
 		return checkNewLitError(r, err, errMsg, l, l)
 	}
 

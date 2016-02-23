@@ -21,6 +21,11 @@ func TestEval_noerrors(t *testing.T) {
 		{"a + numStrB", makeLit(7)},
 		{"8/4", makeLit(2)},
 		{"1/4", makeLit(0.25)},
+
+		/* Tests that unary negation works properly */
+		{fmt.Sprintf("%d + 0", int64(math.MinInt64)),
+			makeLit(int64(math.MinInt64))},
+
 		{"roundto(5.567, 2)", makeLit(5.57)},
 		{"roundto(-17.5, 0)", makeLit(-17)},
 	}
@@ -61,17 +66,17 @@ func TestEval_errors(t *testing.T) {
 			ErrInvalidExpr("Function doesn't exist: bob")),
 		},
 		{"9223372036854775807 + 9223372036854775807", makeLit(
-			ErrInvalidExpr("Invalid operation: 9223372036854775807 + 9223372036854775807, Overflow")),
+			ErrInvalidExpr("Invalid operation: 9223372036854775807 + 9223372036854775807 (Underflow/Overflow)")),
 		},
 		{fmt.Sprintf("%d+1", int64(math.MaxInt64)), makeLit(
-			ErrInvalidExpr("Invalid operation: 9223372036854775807 + 1, Overflow")),
+			ErrInvalidExpr("Invalid operation: 9223372036854775807 + 1 (Underflow/Overflow)")),
+		},
+		{fmt.Sprintf("%d + -1", int64(math.MinInt64)), makeLit(
+			ErrInvalidExpr("Invalid operation: -9223372036854775808 + -1 (Underflow/Overflow)")),
 		},
 		/* TODO: implement this
 		{fmt.Sprintf("%f+1", float64(math.MaxFloat64)), makeLit(
 			ErrInvalidExpr("Invalid operation: 9223372036854775807 + 1, Overflow")),
-		},
-		{fmt.Sprintf("%d-1", int64(math.MinInt64)), makeLit(
-			ErrInvalidExpr("Invalid operation: 8 / 0 (Divide by zero)")),
 		},
 		*/
 		// TODO: Add test for overflow - largest int divided by 0.5
