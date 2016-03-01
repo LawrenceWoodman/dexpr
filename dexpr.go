@@ -164,6 +164,8 @@ func evalBinaryExpr(lh *dlit.Literal, rh *dlit.Literal,
 		r = opEql(lh, rh)
 	case token.GTR:
 		r = opGtr(lh, rh)
+	case token.GEQ:
+		r = opGeq(lh, rh)
 	case token.LAND:
 		r = opLand(lh, rh)
 	case token.ADD:
@@ -298,20 +300,31 @@ func opGtr(lh *dlit.Literal, rh *dlit.Literal) *dlit.Literal {
 		return checkNewLitError(l, err, errMsg, lh, rh)
 	}
 
+	lhFloat, lhIsFloat := lh.Float()
 	rhFloat, rhIsFloat := rh.Float()
-	if lhIsInt && rhIsFloat {
-		l, err := dlit.New(lhInt > int64(math.Floor(rhFloat)))
+
+	if lhIsFloat && rhIsFloat {
+		l, err := dlit.New(lhFloat > rhFloat)
+		return checkNewLitError(l, err, errMsg, lh, rh)
+	}
+
+	return makeErrInvalidExprLiteralFmt(errMsg, lh, rh)
+}
+
+func opGeq(lh *dlit.Literal, rh *dlit.Literal) *dlit.Literal {
+	errMsg := "Invalid comparison: %s >= %s"
+
+	lhInt, lhIsInt := lh.Int()
+	rhInt, rhIsInt := rh.Int()
+	if lhIsInt && rhIsInt {
+		l, err := dlit.New(lhInt >= rhInt)
 		return checkNewLitError(l, err, errMsg, lh, rh)
 	}
 
 	lhFloat, lhIsFloat := lh.Float()
-	if lhIsFloat && rhIsInt {
-		l, err := dlit.New(int64(math.Ceil(lhFloat)) > rhInt)
-		return checkNewLitError(l, err, errMsg, lh, rh)
-	}
-
+	rhFloat, rhIsFloat := rh.Float()
 	if lhIsFloat && rhIsFloat {
-		l, err := dlit.New(lhFloat > rhFloat)
+		l, err := dlit.New(lhFloat >= rhFloat)
 		return checkNewLitError(l, err, errMsg, lh, rh)
 	}
 
