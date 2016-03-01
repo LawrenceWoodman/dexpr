@@ -162,6 +162,8 @@ func evalBinaryExpr(lh *dlit.Literal, rh *dlit.Literal,
 		r = opLeq(lh, rh)
 	case token.EQL:
 		r = opEql(lh, rh)
+	case token.NEQ:
+		r = opNeq(lh, rh)
 	case token.GTR:
 		r = opGtr(lh, rh)
 	case token.GEQ:
@@ -357,6 +359,35 @@ func opEql(lh *dlit.Literal, rh *dlit.Literal) *dlit.Literal {
 	}
 
 	l, err := dlit.New(lh.String() == rh.String())
+	return checkNewLitError(l, err, errMsg, lh, rh)
+}
+
+func opNeq(lh *dlit.Literal, rh *dlit.Literal) *dlit.Literal {
+	errMsg := "Invalid comparison: %s != %s"
+
+	lhInt, lhIsInt := lh.Int()
+	rhInt, rhIsInt := rh.Int()
+	if lhIsInt && rhIsInt {
+		l, err := dlit.New(lhInt != rhInt)
+		return checkNewLitError(l, err, errMsg, lh, rh)
+	}
+
+	lhFloat, lhIsFloat := lh.Float()
+	rhFloat, rhIsFloat := rh.Float()
+	if lhIsFloat && rhIsFloat {
+		l, err := dlit.New(lhFloat != rhFloat)
+		return checkNewLitError(l, err, errMsg, lh, rh)
+	}
+
+	// Don't compare bools as otherwise with the way that floats or ints
+	// are cast to bools you would find that "True" == 1.0 because they would
+	// both convert to true bools
+
+	if lh.IsError() || rh.IsError() {
+		return makeErrInvalidExprLiteralFmt(errMsg, lh, rh)
+	}
+
+	l, err := dlit.New(lh.String() != rh.String())
 	return checkNewLitError(l, err, errMsg, lh, rh)
 }
 
