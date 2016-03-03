@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"github.com/lawrencewoodman/dlit"
 	"go/ast"
-	"go/parser"
 	"go/token"
 	"math"
 	"strconv"
@@ -33,8 +32,9 @@ func (e ErrInvalidOp) Error() string {
 type CallFun func([]*dlit.Literal) (*dlit.Literal, error)
 
 func New(expr string) (*Expr, error) {
-	node, err := parser.ParseExpr(expr)
+	node, err := parseExpr(expr)
 	if err != nil {
+		fmt.Printf("dexpr.New(%s) err: %s\n", expr, err)
 		return &Expr{}, err
 	}
 	return &Expr{Expr: expr, Node: node}, nil
