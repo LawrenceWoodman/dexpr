@@ -1342,40 +1342,6 @@ func isValidImport(lit string) bool {
 	return s != ""
 }
 
-func (p *parser) parseImportSpec(doc *ast.CommentGroup, _ token.Token, _ int) ast.Spec {
-	var ident *ast.Ident
-	switch p.tok {
-	case token.PERIOD:
-		ident = &ast.Ident{NamePos: p.pos, Name: "."}
-		p.next()
-	case token.IDENT:
-		ident = p.parseIdent()
-	}
-
-	pos := p.pos
-	var path string
-	if p.tok == token.STRING {
-		path = p.lit
-		if !isValidImport(path) {
-			p.error(pos, "invalid import path: "+path)
-		}
-		p.next()
-	} else {
-		p.expect(token.STRING) // use expect() error handling
-	}
-	p.expectSemi() // call before accessing p.linecomment
-
-	// collect imports
-	spec := &ast.ImportSpec{
-		Doc:  doc,
-		Name: ident,
-		Path: &ast.BasicLit{ValuePos: pos, Kind: token.STRING, Value: path},
-	}
-	p.imports = append(p.imports, spec)
-
-	return spec
-}
-
 func (p *parser) parseValueSpec(doc *ast.CommentGroup, keyword token.Token, iota int) ast.Spec {
 	pos := p.pos
 	idents := p.parseIdentList()
@@ -1451,56 +1417,4 @@ func (p *parser) parseDecl(sync func(*parser)) ast.Decl {
 	}
 
 	return p.parseGenDecl(p.tok, f)
-}
-
-// ----------------------------------------------------------------------------
-// Source files
-
-func (p *parser) parseFile() *ast.File {
-	// Don't bother parsing the rest if we had errors scanning the first token.
-	// Likely not a Go source file at all.
-	if p.errors.Len() != 0 {
-		return nil
-	}
-
-	// package clause
-	pos := p.expect(token.PACKAGE)
-	// Go spec: The package clause is not a declaration;
-	// the package name does not appear in any scope.
-	ident := p.parseIdent()
-	p.expectSemi()
-
-	// Don't bother parsing the rest if we had errors parsing the package clause.
-	// Likely not a Go source file at all.
-	if p.errors.Len() != 0 {
-		return nil
-	}
-
-	p.openScope()
-	p.pkgScope = p.topScope
-	var decls []ast.Decl
-	p.closeScope()
-	assert(p.topScope == nil, "unbalanced scopes")
-	assert(p.labelScope == nil, "unbalanced label scopes")
-
-	// resolve global identifiers within the same file
-	i := 0
-	for _, ident := range p.unresolved {
-		// i <= index for current ident
-		assert(ident.Obj == unresolved, "object already resolved")
-		ident.Obj = p.pkgScope.Lookup(ident.Name) // also removes unresolved sentinel
-		if ident.Obj == nil {
-			p.unresolved[i] = ident
-			i++
-		}
-	}
-
-	return &ast.File{
-		Package:    pos,
-		Name:       ident,
-		Decls:      decls,
-		Scope:      p.pkgScope,
-		Imports:    p.imports,
-		Unresolved: p.unresolved[0:i],
-	}
 }
