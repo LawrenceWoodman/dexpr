@@ -17,14 +17,10 @@
 package dexpr
 
 import (
-	"bytes"
-	"errors"
 	"fmt"
 	"go/ast"
 	"go/scanner"
 	"go/token"
-	"io"
-	"io/ioutil"
 	"strconv"
 	"strings"
 	"unicode"
@@ -64,44 +60,13 @@ type parser struct {
 	targetStack [][]*ast.Ident // stack of unresolved labels
 }
 
-// If src != nil, readSource converts src to a []byte if possible;
-// otherwise it returns an error. If src == nil, readSource returns
-// the result of reading the file specified by filename.
-//
-func readSource(filename string, src interface{}) ([]byte, error) {
-	if src != nil {
-		switch s := src.(type) {
-		case string:
-			return []byte(s), nil
-		case []byte:
-			return s, nil
-		case *bytes.Buffer:
-			// is io.Reader, but src is already available in []byte form
-			if s != nil {
-				return s.Bytes(), nil
-			}
-		case io.Reader:
-			var buf bytes.Buffer
-			if _, err := io.Copy(&buf, s); err != nil {
-				return nil, err
-			}
-			return buf.Bytes(), nil
-		}
-		return nil, errors.New("invalid source")
-	}
-	return ioutil.ReadFile(filename)
-}
-
-// ParseExprFrom is a convenience function for parsing an expression.
-// The arguments have the same meaning as for Parse, but the source must
-// be a valid Go (type or value) expression.
-//
-func parseExprFrom(fset *token.FileSet, filename string, src interface{}) (ast.Expr, error) {
-	// get source
-	text, err := readSource(filename, src)
-	if err != nil {
-		return nil, err
-	}
+// ParseExpr obtains the AST of an expression x.
+// The position information recorded in the AST is undefined. The filename used
+// in error messages is the empty string.
+func parseExpr(x string) (ast.Expr, error) {
+	var err error
+	text := []byte(x)
+	fset := token.NewFileSet()
 
 	var p parser
 	defer func() {
@@ -116,7 +81,7 @@ func parseExprFrom(fset *token.FileSet, filename string, src interface{}) (ast.E
 	}()
 
 	// parse expr
-	p.init(fset, filename, text)
+	p.init(fset, text)
 	// Set up pkg-level scopes to avoid nil-pointer errors.
 	// This is not needed for a correct expression x as the
 	// parser will be ok with a nil topScope, but be cautious
@@ -142,16 +107,8 @@ func parseExprFrom(fset *token.FileSet, filename string, src interface{}) (ast.E
 	return e, nil
 }
 
-// ParseExpr is a convenience function for obtaining the AST of an expression x.
-// The position information recorded in the AST is undefined. The filename used
-// in error messages is the empty string.
-//
-func parseExpr(x string) (ast.Expr, error) {
-	return parseExprFrom(token.NewFileSet(), "", []byte(x))
-}
-
-func (p *parser) init(fset *token.FileSet, filename string, src []byte) {
-	p.file = fset.AddFile(filename, -1, len(src))
+func (p *parser) init(fset *token.FileSet, src []byte) {
+	p.file = fset.AddFile("", -1, len(src))
 	eh := func(pos token.Position, msg string) { p.errors.Add(pos, msg) }
 	p.scanner.Init(p.file, src, eh, 0)
 	p.next()
@@ -215,7 +172,10 @@ func (p *parser) resolve(x ast.Expr) {
 // Advance to the next token.
 func (p *parser) next() {
 	p.pos, p.tok, p.lit = p.scanner.Scan()
+	p.tok = keywordTokenToIdent(p.tok)
+}
 
+func keywordTokenToIdent(inToken token.Token) token.Token {
 	keywords := []token.Token{
 		token.BREAK, token.CASE, token.CHAN, token.CONST, token.CONTINUE,
 		token.DEFAULT, token.DEFER, token.ELSE, token.FALLTHROUGH,
@@ -224,12 +184,11 @@ func (p *parser) next() {
 		token.SELECT, token.STRUCT, token.SWITCH, token.TYPE, token.VAR,
 	}
 	for _, t := range keywords {
-		if t == p.tok {
-			p.tok = token.IDENT
-			return
+		if t == inToken {
+			return token.IDENT
 		}
 	}
-
+	return inToken
 }
 
 // A bailout panic is raised to indicate early termination.
