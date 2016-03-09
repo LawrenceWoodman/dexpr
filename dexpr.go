@@ -5,7 +5,7 @@ package dexpr
 
 import (
 	"fmt"
-	"github.com/lawrencewoodman/dlit"
+	"github.com/lawrencewoodman/dlit_go"
 	"go/ast"
 	"go/token"
 	"math"
