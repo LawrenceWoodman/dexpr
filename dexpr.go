@@ -1,5 +1,9 @@
 /*
+ * A package for evaluating dynamic expressions
+ *
  * Copyright (C) 2016 Lawrence Woodman <lwoodman@vlifesystems.com>
+ *
+ * Licensed under an MIT licence.  Please see LICENCE.md for details.
  */
 package dexpr
 
