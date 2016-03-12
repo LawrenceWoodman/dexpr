@@ -248,16 +248,7 @@ func opLss(lh *dlit.Literal, rh *dlit.Literal) *dlit.Literal {
 	}
 
 	rhFloat, rhIsFloat := rh.Float()
-	if lhIsInt && rhIsFloat {
-		l, err := dlit.New(lhInt < int64(math.Ceil(rhFloat)))
-		return checkNewLitError(l, err, errMsg, lh, rh)
-	}
-
 	lhFloat, lhIsFloat := lh.Float()
-	if lhIsFloat && rhIsInt {
-		l, err := dlit.New(int64(math.Floor(lhFloat)) < rhInt)
-		return checkNewLitError(l, err, errMsg, lh, rh)
-	}
 
 	if lhIsFloat && rhIsFloat {
 		l, err := dlit.New(lhFloat < rhFloat)
@@ -277,17 +268,7 @@ func opLeq(lh *dlit.Literal, rh *dlit.Literal) *dlit.Literal {
 	}
 
 	rhFloat, rhIsFloat := rh.Float()
-	if lhIsInt && rhIsFloat {
-		l, err := dlit.New(lhInt <= int64(math.Floor(rhFloat)))
-		return checkNewLitError(l, err, errMsg, lh, rh)
-	}
-
 	lhFloat, lhIsFloat := lh.Float()
-	if lhIsFloat && rhIsInt {
-		l, err := dlit.New(int64(math.Floor(lhFloat)) <= rhInt)
-		return checkNewLitError(l, err, errMsg, lh, rh)
-	}
-
 	if lhIsFloat && rhIsFloat {
 		l, err := dlit.New(lhFloat <= rhFloat)
 		return checkNewLitError(l, err, errMsg, lh, rh)
