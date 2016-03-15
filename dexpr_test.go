@@ -8,6 +8,24 @@ import (
 	"testing"
 )
 
+func TestNew_errors(t *testing.T) {
+	cases := []struct {
+		in        string
+		wantError error
+	}{
+		{"7 {} 3", ErrInvalidExpr("Invalid expression: 7 {} 3")},
+	}
+	for _, c := range cases {
+		_, err := New(c.in)
+		if err == nil {
+			t.Errorf("New(%s) no error, wanted: %s", c.in, err)
+		}
+		if err.Error() != c.wantError.Error() {
+			t.Errorf("New(%s) got error: %s, wanted: %s", c.in, err, c.wantError)
+		}
+	}
+}
+
 func TestEval_noerrors(t *testing.T) {
 	cases := []struct {
 		in   string

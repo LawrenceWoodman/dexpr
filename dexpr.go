@@ -38,8 +38,7 @@ type CallFun func([]*dlit.Literal) (*dlit.Literal, error)
 func New(expr string) (*Expr, error) {
 	node, err := parseExpr(expr)
 	if err != nil {
-		fmt.Printf("dexpr.New(%s) err: %s\n", expr, err)
-		return &Expr{}, err
+		return &Expr{}, ErrInvalidExpr(fmt.Sprintf("Invalid expression: %s", expr))
 	}
 	return &Expr{Expr: expr, Node: node}, nil
 }
