@@ -173,6 +173,8 @@ func evalBinaryExpr(lh *dlit.Literal, rh *dlit.Literal,
 		r = opGeq(lh, rh)
 	case token.LAND:
 		r = opLand(lh, rh)
+	case token.LOR:
+		r = opLor(lh, rh)
 	case token.ADD:
 		r = opAdd(lh, rh)
 	case token.MUL:
@@ -382,6 +384,19 @@ func opLand(lh *dlit.Literal, rh *dlit.Literal) *dlit.Literal {
 	rhBool, rhIsBool := rh.Bool()
 	if lhIsBool && rhIsBool {
 		l, err := dlit.New(lhBool && rhBool)
+		return checkNewLitError(l, err, errMsg, lh, rh)
+	}
+
+	return makeErrInvalidExprLiteralFmt(errMsg, lh, rh)
+}
+
+func opLor(lh *dlit.Literal, rh *dlit.Literal) *dlit.Literal {
+	errMsg := "Invalid operation: %s || %s"
+
+	lhBool, lhIsBool := lh.Bool()
+	rhBool, rhIsBool := rh.Bool()
+	if lhIsBool && rhIsBool {
+		l, err := dlit.New(lhBool || rhBool)
 		return checkNewLitError(l, err, errMsg, lh, rh)
 	}
 
