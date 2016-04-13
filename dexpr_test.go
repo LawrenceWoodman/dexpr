@@ -36,6 +36,9 @@ func TestEval_noerrors(t *testing.T) {
 		{"2.6 + 2.5", makeLit(5.1)},
 		{"-2 + -2", makeLit(-4)},
 		{"-2.5 + -2.6", makeLit(-5.1)},
+		{"-2 - 3", makeLit(-5)},
+		{"-2.5 - 3.6", makeLit(-6.1)},
+		{"8 - 9", makeLit(-1)},
 		{"a + numStrB", makeLit(7)},
 		{"8/4", makeLit(2)},
 		{"1/4", makeLit(0.25)},
@@ -92,7 +95,7 @@ func TestEval_errors(t *testing.T) {
 		{"bob(5.567, 2)", makeLit(
 			ErrInvalidExpr("Function doesn't exist: bob")),
 		},
-		{"9223372036854775807 + 9223372036854775807", makeLit(
+		{fmt.Sprintf("%d+%d", int64(math.MaxInt64), int64(math.MaxInt64)), makeLit(
 			ErrInvalidExpr("Invalid operation: 9223372036854775807 + 9223372036854775807 (Underflow/Overflow)")),
 		},
 		{fmt.Sprintf("%d+1", int64(math.MaxInt64)), makeLit(
@@ -100,6 +103,16 @@ func TestEval_errors(t *testing.T) {
 		},
 		{fmt.Sprintf("%d + -1", int64(math.MinInt64)), makeLit(
 			ErrInvalidExpr("Invalid operation: -9223372036854775808 + -1 (Underflow/Overflow)")),
+		},
+		{fmt.Sprintf("%d - %d",
+			int64(math.MaxInt64), int64(math.MinInt64)), makeLit(
+			ErrInvalidExpr("Invalid operation: 9223372036854775807 - -9223372036854775808 (Underflow/Overflow)")),
+		},
+		{fmt.Sprintf("%d - -1", int64(math.MaxInt64)), makeLit(
+			ErrInvalidExpr("Invalid operation: 9223372036854775807 - -1 (Underflow/Overflow)")),
+		},
+		{fmt.Sprintf("%d - 1", int64(math.MinInt64)), makeLit(
+			ErrInvalidExpr("Invalid operation: -9223372036854775808 - 1 (Underflow/Overflow)")),
 		},
 		{fmt.Sprintf("%d*2", int64(math.MaxInt64)), makeLit(
 			ErrInvalidExpr("Invalid operation: 9223372036854775807 * 2 (Underflow/Overflow)")),

@@ -177,6 +177,8 @@ func evalBinaryExpr(lh *dlit.Literal, rh *dlit.Literal,
 		r = opLor(lh, rh)
 	case token.ADD:
 		r = opAdd(lh, rh)
+	case token.SUB:
+		r = opSub(lh, rh)
 	case token.MUL:
 		r = opMul(lh, rh)
 	case token.QUO:
@@ -421,6 +423,29 @@ func opAdd(lh *dlit.Literal, rh *dlit.Literal) *dlit.Literal {
 	rhFloat, rhIsFloat := rh.Float()
 	if lhIsFloat && rhIsFloat {
 		l, err := dlit.New(lhFloat + rhFloat)
+		return checkNewLitError(l, err, errMsg, lh, rh)
+	}
+	return makeErrInvalidExprLiteralFmt(errMsg, lh, rh)
+}
+
+func opSub(lh *dlit.Literal, rh *dlit.Literal) *dlit.Literal {
+	errMsg := "Invalid operation: %s - %s"
+	lhInt, lhIsInt := lh.Int()
+	rhInt, rhIsInt := rh.Int()
+	if lhIsInt && rhIsInt {
+		r := lhInt - rhInt
+		if (r > lhInt) != (rhInt < 0) {
+			thisErrMsg := fmt.Sprintf("%s (Underflow/Overflow)", errMsg)
+			return makeErrInvalidExprLiteralFmt(thisErrMsg, lh, rh)
+		}
+		l, err := dlit.New(r)
+		return checkNewLitError(l, err, errMsg, lh, rh)
+	}
+
+	lhFloat, lhIsFloat := lh.Float()
+	rhFloat, rhIsFloat := rh.Float()
+	if lhIsFloat && rhIsFloat {
+		l, err := dlit.New(lhFloat - rhFloat)
 		return checkNewLitError(l, err, errMsg, lh, rh)
 	}
 	return makeErrInvalidExprLiteralFmt(errMsg, lh, rh)
