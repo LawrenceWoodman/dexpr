@@ -8,6 +8,51 @@ import (
 	"testing"
 )
 
+func TestMustNew(t *testing.T) {
+	cases := []struct {
+		in      string
+		wantStr string
+	}{
+		{"a+b", "a+b"},
+		{"income", "income"},
+		{"6.6", "6.6"},
+	}
+
+	for _, c := range cases {
+		got := MustNew(c.in)
+		if got.String() != c.wantStr {
+			t.Errorf("MustNew(%q) - got: %s, want: %s", c.in, got, c.wantStr)
+		}
+	}
+}
+
+func TestMustNew_panic(t *testing.T) {
+	cases := []struct {
+		in        string
+		wantPanic string
+	}{
+		{"/bob harry", ErrInvalidExpr("Invalid expression: /bob harry").Error()},
+	}
+
+	for _, c := range cases {
+		paniced := false
+		defer func() {
+			if r := recover(); r != nil {
+				if r.(string) == c.wantPanic {
+					paniced = true
+				} else {
+					t.Errorf("MustNew(%q) - got panic: %s, wanted: %s",
+						c.in, r, c.wantPanic)
+				}
+			}
+		}()
+		MustNew(c.in)
+		if c.wantPanic != "" && !paniced {
+			t.Errorf("MustNew(%q) - failed to panic with: %s", c.in, c.wantPanic)
+		}
+	}
+}
+
 func TestNew_errors(t *testing.T) {
 	cases := []struct {
 		in        string

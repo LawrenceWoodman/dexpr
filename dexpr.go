@@ -43,6 +43,14 @@ func New(expr string) (*Expr, error) {
 	return &Expr{Expr: expr, Node: node}, nil
 }
 
+func MustNew(expr string) *Expr {
+	e, err := New(expr)
+	if err != nil {
+		panic(err.Error())
+	}
+	return e
+}
+
 func (expr *Expr) Eval(
 	vars map[string]*dlit.Literal, callFuncs map[string]CallFun) *dlit.Literal {
 	var l *dlit.Literal
