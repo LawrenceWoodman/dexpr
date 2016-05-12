@@ -3,7 +3,7 @@ package dexpr
 import (
 	"errors"
 	"fmt"
-	"github.com/lawrencewoodman/dlit_go"
+	"github.com/lawrencewoodman/dlit"
 	"math"
 	"testing"
 )

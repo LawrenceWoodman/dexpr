@@ -9,7 +9,7 @@ package dexpr
 
 import (
 	"fmt"
-	"github.com/lawrencewoodman/dlit_go"
+	"github.com/lawrencewoodman/dlit"
 	"go/ast"
 	"go/token"
 	"math"
