@@ -76,37 +76,37 @@ func TestEval_noerrors(t *testing.T) {
 		in   string
 		want *dlit.Literal
 	}{
-		{"1 == 1", makeLit(true)},
-		{"1 == 2", makeLit(false)},
-		{"2.6 + 2.5", makeLit(5.1)},
-		{"-2 + -2", makeLit(-4)},
-		{"-2.5 + -2.6", makeLit(-5.1)},
-		{"-2 - 3", makeLit(-5)},
-		{"-2.5 - 3.6", makeLit(-6.1)},
-		{"8 - 9", makeLit(-1)},
-		{"a + numStrB", makeLit(7)},
-		{"8/4", makeLit(2)},
-		{"1/4", makeLit(0.25)},
-		{"8*4", makeLit(32)},
+		{"1 == 1", dlit.MustNew(true)},
+		{"1 == 2", dlit.MustNew(false)},
+		{"2.6 + 2.5", dlit.MustNew(5.1)},
+		{"-2 + -2", dlit.MustNew(-4)},
+		{"-2.5 + -2.6", dlit.MustNew(-5.1)},
+		{"-2 - 3", dlit.MustNew(-5)},
+		{"-2.5 - 3.6", dlit.MustNew(-6.1)},
+		{"8 - 9", dlit.MustNew(-1)},
+		{"a + numStrB", dlit.MustNew(7)},
+		{"8/4", dlit.MustNew(2)},
+		{"1/4", dlit.MustNew(0.25)},
+		{"8*4", dlit.MustNew(32)},
 		{fmt.Sprintf("%d * 1", int64(math.MinInt64)),
-			makeLit(int64(math.MinInt64))},
+			dlit.MustNew(int64(math.MinInt64))},
 		{fmt.Sprintf("%d * 1", int64(math.MaxInt64)),
-			makeLit(int64(math.MaxInt64))},
+			dlit.MustNew(int64(math.MaxInt64))},
 		{fmt.Sprintf("(%d / 2) * 2", int64(math.MinInt64)),
-			makeLit(int64(math.MinInt64))},
+			dlit.MustNew(int64(math.MinInt64))},
 		{fmt.Sprintf("((%d+-1) / 2) * 2", int64(math.MaxInt64)),
-			makeLit(int64(math.MaxInt64) - 1)},
+			dlit.MustNew(int64(math.MaxInt64) - 1)},
 
 		/* Tests that unary negation works properly */
 		{fmt.Sprintf("%d + 0", int64(math.MinInt64)),
-			makeLit(int64(math.MinInt64))},
+			dlit.MustNew(int64(math.MinInt64))},
 
-		{"roundto(5.567, 2)", makeLit(5.57)},
-		{"roundto(-17.5, 0)", makeLit(-17)},
+		{"roundto(5.567, 2)", dlit.MustNew(5.57)},
+		{"roundto(-17.5, 0)", dlit.MustNew(-17)},
 	}
 	vars := map[string]*dlit.Literal{
-		"a":       makeLit(4),
-		"numStrB": makeLit("3"),
+		"a":       dlit.MustNew(4),
+		"numStrB": dlit.MustNew("3"),
 	}
 	funcs := map[string]CallFun{
 		"roundto": roundTo,
@@ -128,45 +128,46 @@ func TestEval_errors(t *testing.T) {
 		in   string
 		want *dlit.Literal
 	}{
-		{"8/bob", makeLit(
+		{"8/bob", dlit.MustNew(
 			ErrInvalidExpr("Variable doesn't exist: bob")),
 		},
-		{"8/(1 == 1)", makeLit(
+		{"8/(1 == 1)", dlit.MustNew(
 			ErrInvalidExpr("Invalid operation: 8 / true")),
 		},
-		{"8/0", makeLit(
+		{"8/0", dlit.MustNew(
 			ErrInvalidExpr("Invalid operation: 8 / 0 (Divide by zero)")),
 		},
-		{"bob(5.567, 2)", makeLit(
+		{"bob(5.567, 2)", dlit.MustNew(
 			ErrInvalidExpr("Function doesn't exist: bob")),
 		},
-		{fmt.Sprintf("%d+%d", int64(math.MaxInt64), int64(math.MaxInt64)), makeLit(
-			ErrInvalidExpr("Invalid operation: 9223372036854775807 + 9223372036854775807 (Underflow/Overflow)")),
+		{fmt.Sprintf("%d+%d", int64(math.MaxInt64), int64(math.MaxInt64)),
+			dlit.MustNew(
+				ErrInvalidExpr("Invalid operation: 9223372036854775807 + 9223372036854775807 (Underflow/Overflow)")),
 		},
-		{fmt.Sprintf("%d+1", int64(math.MaxInt64)), makeLit(
+		{fmt.Sprintf("%d+1", int64(math.MaxInt64)), dlit.MustNew(
 			ErrInvalidExpr("Invalid operation: 9223372036854775807 + 1 (Underflow/Overflow)")),
 		},
-		{fmt.Sprintf("%d + -1", int64(math.MinInt64)), makeLit(
+		{fmt.Sprintf("%d + -1", int64(math.MinInt64)), dlit.MustNew(
 			ErrInvalidExpr("Invalid operation: -9223372036854775808 + -1 (Underflow/Overflow)")),
 		},
 		{fmt.Sprintf("%d - %d",
-			int64(math.MaxInt64), int64(math.MinInt64)), makeLit(
+			int64(math.MaxInt64), int64(math.MinInt64)), dlit.MustNew(
 			ErrInvalidExpr("Invalid operation: 9223372036854775807 - -9223372036854775808 (Underflow/Overflow)")),
 		},
-		{fmt.Sprintf("%d - -1", int64(math.MaxInt64)), makeLit(
+		{fmt.Sprintf("%d - -1", int64(math.MaxInt64)), dlit.MustNew(
 			ErrInvalidExpr("Invalid operation: 9223372036854775807 - -1 (Underflow/Overflow)")),
 		},
-		{fmt.Sprintf("%d - 1", int64(math.MinInt64)), makeLit(
+		{fmt.Sprintf("%d - 1", int64(math.MinInt64)), dlit.MustNew(
 			ErrInvalidExpr("Invalid operation: -9223372036854775808 - 1 (Underflow/Overflow)")),
 		},
-		{fmt.Sprintf("%d*2", int64(math.MaxInt64)), makeLit(
+		{fmt.Sprintf("%d*2", int64(math.MaxInt64)), dlit.MustNew(
 			ErrInvalidExpr("Invalid operation: 9223372036854775807 * 2 (Underflow/Overflow)")),
 		},
-		{fmt.Sprintf("%d*2", int64(math.MinInt64)), makeLit(
+		{fmt.Sprintf("%d*2", int64(math.MinInt64)), dlit.MustNew(
 			ErrInvalidExpr("Invalid operation: -9223372036854775808 * 2 (Underflow/Overflow)")),
 		},
 		/* TODO: implement this
-		{fmt.Sprintf("%f+1", float64(math.MaxFloat64)), makeLit(
+		{fmt.Sprintf("%f+1", float64(math.MaxFloat64)), dlit.MustNew(
 			ErrInvalidExpr("Invalid operation: 9223372036854775807 + 1, Overflow")),
 		},
 		*/
@@ -174,8 +175,8 @@ func TestEval_errors(t *testing.T) {
 		// TODO: Add test for overflow - largest float divided by 0.5
 	}
 	vars := map[string]*dlit.Literal{
-		"a":       makeLit(4),
-		"numStrB": makeLit("3"),
+		"a":       dlit.MustNew(4),
+		"numStrB": dlit.MustNew("3"),
 	}
 	funcs := map[string]CallFun{
 		"roundto": roundTo,
@@ -434,40 +435,40 @@ func TestEvalBool_noErrors(t *testing.T) {
 		*/
 	}
 	vars := map[string]*dlit.Literal{
-		"a":           makeLit(4),
-		"b":           makeLit(3),
-		"c":           makeLit(4.5),
-		"d":           makeLit(3.5),
-		"str":         makeLit("hello"),
-		"numStrA":     makeLit("4"),
-		"numStrB":     makeLit("3"),
-		"numStrC":     makeLit("4.5"),
-		"numStrD":     makeLit("3.5"),
-		"break":       makeLit(1),
-		"case":        makeLit(2),
-		"chan":        makeLit(3),
-		"const":       makeLit(4),
-		"continue":    makeLit(5),
-		"default":     makeLit(6),
-		"defer":       makeLit(7),
-		"else":        makeLit(8),
-		"fallthrough": makeLit(9),
-		"for":         makeLit(10),
-		"func":        makeLit(11),
-		"go":          makeLit(12),
-		"goto":        makeLit(13),
-		"if":          makeLit(14),
-		"import":      makeLit(15),
-		"interface":   makeLit(16),
-		"map":         makeLit(17),
-		"package":     makeLit(18),
-		"range":       makeLit(19),
-		"return":      makeLit(20),
-		"select":      makeLit(21),
-		"struct":      makeLit(22),
-		"switch":      makeLit(23),
-		"type":        makeLit(24),
-		"var":         makeLit(25),
+		"a":           dlit.MustNew(4),
+		"b":           dlit.MustNew(3),
+		"c":           dlit.MustNew(4.5),
+		"d":           dlit.MustNew(3.5),
+		"str":         dlit.MustNew("hello"),
+		"numStrA":     dlit.MustNew("4"),
+		"numStrB":     dlit.MustNew("3"),
+		"numStrC":     dlit.MustNew("4.5"),
+		"numStrD":     dlit.MustNew("3.5"),
+		"break":       dlit.MustNew(1),
+		"case":        dlit.MustNew(2),
+		"chan":        dlit.MustNew(3),
+		"const":       dlit.MustNew(4),
+		"continue":    dlit.MustNew(5),
+		"default":     dlit.MustNew(6),
+		"defer":       dlit.MustNew(7),
+		"else":        dlit.MustNew(8),
+		"fallthrough": dlit.MustNew(9),
+		"for":         dlit.MustNew(10),
+		"func":        dlit.MustNew(11),
+		"go":          dlit.MustNew(12),
+		"goto":        dlit.MustNew(13),
+		"if":          dlit.MustNew(14),
+		"import":      dlit.MustNew(15),
+		"interface":   dlit.MustNew(16),
+		"map":         dlit.MustNew(17),
+		"package":     dlit.MustNew(18),
+		"range":       dlit.MustNew(19),
+		"return":      dlit.MustNew(20),
+		"select":      dlit.MustNew(21),
+		"struct":      dlit.MustNew(22),
+		"switch":      dlit.MustNew(23),
+		"type":        dlit.MustNew(24),
+		"var":         dlit.MustNew(25),
 	}
 	funcs := map[string]CallFun{
 		"roundto": roundTo,
@@ -553,30 +554,22 @@ func TestEvalBool_errors(t *testing.T) {
  *    Helper functions
  **********************************/
 
-func makeLit(v interface{}) *dlit.Literal {
-	l, err := dlit.New(v)
-	if err != nil {
-		panic(fmt.Sprintf("MakeLit(%q) gave err: %q", v, err))
-	}
-	return l
-}
-
 func roundTo(args []*dlit.Literal) (*dlit.Literal, error) {
 	if len(args) > 2 {
 		err := errors.New("Too many arguments")
-		return makeLit(err), err
+		return dlit.MustNew(err), err
 	}
 	x, isFloat := args[0].Float()
 	if !isFloat {
 		err := errors.New("Can't convert to float")
-		return makeLit(err), err
+		return dlit.MustNew(err), err
 	}
 	p, isInt := args[1].Int()
 	if !isInt {
 		err := errors.New("Can't convert to int")
-		return makeLit(err), err
+		return dlit.MustNew(err), err
 	}
 	// This uses round half-up to tie-break
 	shift := math.Pow(10, float64(p))
-	return makeLit(math.Floor(.5+x*shift) / shift), nil
+	return dlit.MustNew(math.Floor(.5+x*shift) / shift), nil
 }
