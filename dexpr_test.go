@@ -59,6 +59,7 @@ func TestNew_errors(t *testing.T) {
 		wantError error
 	}{
 		{"7 {} 3", ErrInvalidExpr("Invalid expression: 7 {} 3")},
+		{"8/cot££t", ErrInvalidExpr("Invalid expression: 8/cot££t")},
 	}
 	for _, c := range cases {
 		_, err := New(c.in)
