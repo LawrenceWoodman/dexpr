@@ -118,7 +118,7 @@ func TestEval_noerrors(t *testing.T) {
 			t.Errorf("New(%s) err: %s", c.in, err)
 		}
 		got := dexpr.Eval(vars, funcs)
-		if _, gotIsErr := got.Err(); gotIsErr || got.String() != c.want.String() {
+		if err := got.Err(); err != nil || got.String() != c.want.String() {
 			t.Errorf("Eval(vars) in: %q, got: %s, want: %s", c.in, got, c.want)
 		}
 	}
@@ -188,9 +188,9 @@ func TestEval_errors(t *testing.T) {
 			t.Errorf("New(%s) err: %s", c.in, err)
 		}
 		got := dexpr.Eval(vars, funcs)
-		_, gotIsErr := got.Err()
-		_, wantIsErr := c.want.Err()
-		if gotIsErr != wantIsErr || got.String() != c.want.String() {
+		gotErr := got.Err()
+		wantErr := c.want.Err()
+		if gotErr != wantErr || got.String() != c.want.String() {
 			t.Errorf("Eval(vars) in: %q, got: %s, want: %s", c.in, got, c.want)
 		}
 	}
