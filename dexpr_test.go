@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/lawrencewoodman/dlit"
+	"go/token"
 	"math"
 	"testing"
 )
@@ -27,29 +28,21 @@ func TestMustNew(t *testing.T) {
 }
 
 func TestMustNew_panic(t *testing.T) {
-	cases := []struct {
-		in        string
-		wantPanic string
-	}{
-		{"/bob harry", ErrInvalidExpr("Invalid expression: /bob harry").Error()},
-	}
-
-	for _, c := range cases {
-		paniced := false
-		defer func() {
-			if r := recover(); r != nil {
-				if r.(string) == c.wantPanic {
-					paniced = true
-				} else {
-					t.Errorf("MustNew(%q) - got panic: %s, wanted: %s",
-						c.in, r, c.wantPanic)
-				}
+	expr := "/bob harry"
+	wantPanic := ErrInvalidExpr{"/bob harry", ErrSyntax}
+	paniced := false
+	defer func() {
+		if r := recover(); r != nil {
+			if r.(string) == wantPanic.Error() {
+				paniced = true
+			} else {
+				t.Errorf("MustNew(%s) - got panic: %s, wanted: %s", expr, r, wantPanic)
 			}
-		}()
-		MustNew(c.in)
-		if c.wantPanic != "" && !paniced {
-			t.Errorf("MustNew(%q) - failed to panic with: %s", c.in, c.wantPanic)
 		}
+	}()
+	MustNew(expr)
+	if !paniced {
+		t.Errorf("MustNew(%s) - failed to panic with: %s", expr, wantPanic)
 	}
 }
 
@@ -58,15 +51,30 @@ func TestNew_errors(t *testing.T) {
 		in        string
 		wantError error
 	}{
-		{"7 {} 3", ErrInvalidExpr("Invalid expression: 7 {} 3")},
-		{"8/cot££t", ErrInvalidExpr("Invalid expression: 8/cot££t")},
+		{"7 {} 3", ErrInvalidExpr{"7 {} 3", ErrSyntax}},
+		{"8/cot££t", ErrInvalidExpr{"8/cot££t", ErrSyntax}},
+		{"[lit{fred", ErrInvalidExpr{"[lit{fred", ErrSyntax}},
+		{"[lit{fred}", ErrInvalidExpr{"[lit{fred}", ErrSyntax}},
+		{"[]lit{fred", ErrInvalidExpr{"[]lit{fred", ErrSyntax}},
+
+		/* map not implemented */
+		{"map[lit]lit{\"fred\": 7, \"bob\": 9, \"alf\": 2}[\"bob\"] == 8",
+			ErrInvalidExpr{
+				"map[lit]lit{\"fred\": 7, \"bob\": 9, \"alf\": 2}[\"bob\"] == 8",
+				ErrSyntax,
+			}},
+		{"map[lit]lit{\"fred\": 7, \"bob\": 9, \"alf\": 2}[\"bob\"] == 9",
+			ErrInvalidExpr{
+				"map[lit]lit{\"fred\": 7, \"bob\": 9, \"alf\": 2}[\"bob\"] == 9",
+				ErrSyntax,
+			}},
 	}
 	for _, c := range cases {
 		_, err := New(c.in)
 		if err == nil {
 			t.Errorf("New(%s) no error, wanted: %s", c.in, err)
 		}
-		if err.Error() != c.wantError.Error() {
+		if err != c.wantError {
 			t.Errorf("New(%s) got error: %s, wanted: %s", c.in, err, c.wantError)
 		}
 	}
@@ -130,43 +138,93 @@ func TestEval_errors(t *testing.T) {
 		want *dlit.Literal
 	}{
 		{"8/bob", dlit.MustNew(
-			ErrInvalidExpr("Variable doesn't exist: bob")),
+			ErrInvalidExpr{"8/bob", ErrVarNotExist("bob")}),
 		},
 		{"8/(1 == 1)", dlit.MustNew(
-			ErrInvalidExpr("Invalid operation: 8 / true")),
-		},
-		{"8/0", dlit.MustNew(
-			ErrInvalidExpr("Invalid operation: 8 / 0 (Divide by zero)")),
-		},
+			ErrInvalidExpr{"8/(1 == 1)", ErrIncompatibleTypes},
+		)},
+		{"8/0", dlit.MustNew(ErrInvalidExpr{"8/0", ErrDivByZero})},
 		{"bob(5.567, 2)", dlit.MustNew(
-			ErrInvalidExpr("Function doesn't exist: bob")),
-		},
+			ErrInvalidExpr{"bob(5.567, 2)", ErrFunctionNotExist("bob")},
+		)},
+		{"roundto(5.567, 2, 9, 23)", dlit.MustNew(
+			ErrInvalidExpr{"roundto(5.567, 2, 9, 23)",
+				ErrFunctionError{"roundto", errTooManyArguments}},
+		)},
 		{fmt.Sprintf("%d+%d", int64(math.MaxInt64), int64(math.MaxInt64)),
 			dlit.MustNew(
-				ErrInvalidExpr("Invalid operation: 9223372036854775807 + 9223372036854775807 (Underflow/Overflow)")),
+				ErrInvalidExpr{
+					fmt.Sprintf("%d+%d", int64(math.MaxInt64), int64(math.MaxInt64)),
+					ErrUnderflowOverflow,
+				}),
 		},
-		{fmt.Sprintf("%d+1", int64(math.MaxInt64)), dlit.MustNew(
-			ErrInvalidExpr("Invalid operation: 9223372036854775807 + 1 (Underflow/Overflow)")),
+		{fmt.Sprintf("%d+1", int64(math.MaxInt64)),
+			dlit.MustNew(
+				ErrInvalidExpr{
+					fmt.Sprintf("%d+1", int64(math.MaxInt64)),
+					ErrUnderflowOverflow,
+				}),
 		},
-		{fmt.Sprintf("%d + -1", int64(math.MinInt64)), dlit.MustNew(
-			ErrInvalidExpr("Invalid operation: -9223372036854775808 + -1 (Underflow/Overflow)")),
+		{fmt.Sprintf("%d + -1", int64(math.MinInt64)),
+			dlit.MustNew(
+				ErrInvalidExpr{
+					fmt.Sprintf("%d + -1", int64(math.MinInt64)),
+					ErrUnderflowOverflow,
+				}),
 		},
-		{fmt.Sprintf("%d - %d",
-			int64(math.MaxInt64), int64(math.MinInt64)), dlit.MustNew(
-			ErrInvalidExpr("Invalid operation: 9223372036854775807 - -9223372036854775808 (Underflow/Overflow)")),
+		{fmt.Sprintf("%d - %d", int64(math.MaxInt64), int64(math.MinInt64)),
+			dlit.MustNew(
+				ErrInvalidExpr{
+					fmt.Sprintf("%d - %d", int64(math.MaxInt64), int64(math.MinInt64)),
+					ErrUnderflowOverflow,
+				}),
 		},
-		{fmt.Sprintf("%d - -1", int64(math.MaxInt64)), dlit.MustNew(
-			ErrInvalidExpr("Invalid operation: 9223372036854775807 - -1 (Underflow/Overflow)")),
+		{fmt.Sprintf("%d - -1", int64(math.MaxInt64)),
+			dlit.MustNew(
+				ErrInvalidExpr{
+					fmt.Sprintf("%d - -1", int64(math.MaxInt64)),
+					ErrUnderflowOverflow,
+				}),
 		},
-		{fmt.Sprintf("%d - 1", int64(math.MinInt64)), dlit.MustNew(
-			ErrInvalidExpr("Invalid operation: -9223372036854775808 - 1 (Underflow/Overflow)")),
+		{fmt.Sprintf("%d - 1", int64(math.MinInt64)),
+			dlit.MustNew(
+				ErrInvalidExpr{
+					fmt.Sprintf("%d - 1", int64(math.MinInt64)),
+					ErrUnderflowOverflow,
+				}),
 		},
-		{fmt.Sprintf("%d*2", int64(math.MaxInt64)), dlit.MustNew(
-			ErrInvalidExpr("Invalid operation: 9223372036854775807 * 2 (Underflow/Overflow)")),
+		{fmt.Sprintf("%d*2", int64(math.MaxInt64)),
+			dlit.MustNew(
+				ErrInvalidExpr{
+					fmt.Sprintf("%d*2", int64(math.MaxInt64)),
+					ErrUnderflowOverflow,
+				}),
 		},
-		{fmt.Sprintf("%d*2", int64(math.MinInt64)), dlit.MustNew(
-			ErrInvalidExpr("Invalid operation: -9223372036854775808 * 2 (Underflow/Overflow)")),
+		{fmt.Sprintf("%d*2", int64(math.MinInt64)),
+			dlit.MustNew(
+				ErrInvalidExpr{
+					fmt.Sprintf("%d*2", int64(math.MinInt64)),
+					ErrUnderflowOverflow,
+				}),
 		},
+
+		/* Composite literals */
+		{"[]int{7,9,2}[1] == 9",
+			dlit.MustNew(
+				ErrInvalidExpr{
+					"[]int{7,9,2}[1] == 9",
+					ErrInvalidCompositeType,
+				})},
+		{"[]string{\"fred\",\"bob\",\"alf\"}[1] == \"bob\"",
+			dlit.MustNew(
+				ErrInvalidExpr{
+					"[]string{\"fred\",\"bob\",\"alf\"}[1] == \"bob\"",
+					ErrInvalidCompositeType,
+				})},
+		{"[]lit{7,9,2}[3] == 9", dlit.MustNew(
+			ErrInvalidExpr{"[]lit{7,9,2}[3] == 9", ErrInvalidIndex},
+		)},
+
 		/* TODO: implement this
 		{fmt.Sprintf("%f+1", float64(math.MaxFloat64)), dlit.MustNew(
 			ErrInvalidExpr("Invalid operation: 9223372036854775807 + 1, Overflow")),
@@ -174,6 +232,7 @@ func TestEval_errors(t *testing.T) {
 		*/
 		// TODO: Add test for overflow - largest int divided by 0.5
 		// TODO: Add test for overflow - largest float divided by 0.5
+
 	}
 	vars := map[string]*dlit.Literal{
 		"a":       dlit.MustNew(4),
@@ -190,8 +249,8 @@ func TestEval_errors(t *testing.T) {
 		got := dexpr.Eval(vars, funcs)
 		gotErr := got.Err()
 		wantErr := c.want.Err()
-		if gotErr != wantErr || got.String() != c.want.String() {
-			t.Errorf("Eval(vars) in: %q, got: %s, want: %s", c.in, got, c.want)
+		if gotErr != wantErr {
+			t.Errorf("Eval(vars) in: %s, got: %s, want: %s", c.in, got, c.want)
 		}
 	}
 }
@@ -430,6 +489,20 @@ func TestEvalBool_noErrors(t *testing.T) {
 		{"roundto(8+2.25, 1) == 10.3", true},
 		{"roundto(8+2.25, 1) == 10.25", false},
 
+		/* Check composite literals can be used */
+		{"[]lit{7,9,2}[1] == 9", true},
+		{"[]lit{7,9,2}[1] == 8", false},
+		{"[3]lit{7,9,2}[1] == 9", true},
+		{"[3]lit{7,9,2}[1] == 8", false},
+		{"[]lit{7.8,9.4,2.3}[1] == 9.4", true},
+		{"[]lit{7.8,9.4,2.3}[1] == 7.8", false},
+		{"[]lit{numStrA, numStrB, numStrC}[2] == 4.5", true},
+		{"[]lit{numStrA, numStrB, numStrC}[2] == 3", false},
+		{"[]lit{\"fred\", \"bob\", \"alf\"}[2] == \"alf\"", true},
+		{"[]lit{\"fred\", \"bob\", \"alf\"}[2] == \"bob\"", false},
+		{"[3]lit{\"fred\", \"bob\", \"alf\"}[2] == \"alf\"", true},
+		{"[3]lit{\"fred\", \"bob\", \"alf\"}[2] == \"bob\"", false},
+
 		/*
 			{"isFrom(5)", true},
 			{"isFrom(true)", true},
@@ -516,19 +589,29 @@ func TestEvalBool_errors(t *testing.T) {
 		want      bool
 		wantError error
 	}{
-		{"7 + 8", false, ErrInvalidExpr("Expression doesn't return a bool")},
+		{"7 + 8", false, ErrInvalidExpr{"7 + 8", ErrIncompatibleTypes}},
 		{"7 < \"hello\"", false,
-			ErrInvalidExpr("Invalid comparison: 7 < \"hello\"")},
+			ErrInvalidExpr{"7 < \"hello\"", ErrIncompatibleTypes},
+		},
 		{"\"world\" > 2.1", false,
-			ErrInvalidExpr("Invalid comparison: \"world\" > 2.1")},
-		{"10 & 101", false, ErrInvalidExpr("Invalid operator: \"&\"")},
-		{"7 && 9", false, ErrInvalidExpr("Invalid operation: 7 && 9")},
-		{"total > 20", false,
-			ErrInvalidExpr("Variable doesn't exist: total")},
-		{"20 < total", false,
-			ErrInvalidExpr("Variable doesn't exist: total")},
+			ErrInvalidExpr{"\"world\" > 2.1", ErrIncompatibleTypes},
+		},
+		{"10 & 101", false, ErrInvalidExpr{"10 & 101", ErrInvalidOp(token.AND)}},
+		{"7 && 9", false, ErrInvalidExpr{"7 && 9", ErrIncompatibleTypes}},
+		{"total > 20",
+			false,
+			ErrInvalidExpr{"total > 20", ErrVarNotExist("total")},
+		},
+		{"20 < total",
+			false,
+			ErrInvalidExpr{"20 < total", ErrVarNotExist("total")},
+		},
 		{"bob(8+2.257) == 7", false,
-			ErrInvalidExpr("Function doesn't exist: bob")},
+			ErrInvalidExpr{"bob(8+2.257) == 7", ErrFunctionNotExist("bob")},
+		},
+		{"-\"something\"", false,
+			ErrInvalidExpr{"-\"something\"", ErrIncompatibleTypes},
+		},
 	}
 	vars := map[string]*dlit.Literal{}
 	funcs := map[string]CallFun{}
@@ -554,20 +637,21 @@ func TestEvalBool_errors(t *testing.T) {
 /**********************************
  *    Helper functions
  **********************************/
+var errTooManyArguments = errors.New("too many arguments")
 
 func roundTo(args []*dlit.Literal) (*dlit.Literal, error) {
 	if len(args) > 2 {
-		err := errors.New("Too many arguments")
+		err := errTooManyArguments
 		return dlit.MustNew(err), err
 	}
 	x, isFloat := args[0].Float()
 	if !isFloat {
-		err := errors.New("Can't convert to float")
+		err := errors.New("can't convert to float")
 		return dlit.MustNew(err), err
 	}
 	p, isInt := args[1].Int()
 	if !isInt {
-		err := errors.New("Can't convert to int")
+		err := errors.New("can't convert to int")
 		return dlit.MustNew(err), err
 	}
 	// This uses round half-up to tie-break
