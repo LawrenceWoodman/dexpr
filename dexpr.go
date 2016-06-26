@@ -30,12 +30,12 @@ type Expr struct {
 }
 
 type ErrInvalidExpr struct {
-	expr string
-	err  error
+	Expr string
+	Err  error
 }
 
 func (e ErrInvalidExpr) Error() string {
-	return fmt.Sprintf("invalid expression: %s (%s)", e.expr, e.err)
+	return fmt.Sprintf("invalid expression: %s (%s)", e.Expr, e.Err)
 }
 
 type ErrInvalidOp token.Token
@@ -57,12 +57,12 @@ func (e ErrVarNotExist) Error() string {
 }
 
 type ErrFunctionError struct {
-	fnName string
-	err    error
+	FnName string
+	Err    error
 }
 
 func (e ErrFunctionError) Error() string {
-	return fmt.Sprintf("function: %s, returned error: %s", e.fnName, e.err)
+	return fmt.Sprintf("function: %s, returned error: %s", e.FnName, e.Err)
 }
 
 type CallFun func([]*dlit.Literal) (*dlit.Literal, error)
