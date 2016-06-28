@@ -229,6 +229,20 @@ func TestEval_errors(t *testing.T) {
 			ErrInvalidExpr{"[]lit{7,9,2}[3] == 9", ErrInvalidIndex},
 		)},
 
+		/* Indexing non indexable values */
+		{"7[0] == 4",
+			dlit.MustNew(
+				ErrInvalidExpr{
+					"7[0] == 4",
+					ErrTypeNotIndexable,
+				})},
+		{"7.2[0] == 4",
+			dlit.MustNew(
+				ErrInvalidExpr{
+					"7.2[0] == 4",
+					ErrTypeNotIndexable,
+				})},
+
 		/* TODO: implement this
 		{fmt.Sprintf("%f+1", float64(math.MaxFloat64)), dlit.MustNew(
 			ErrInvalidExpr("Invalid operation: 9223372036854775807 + 1, Overflow")),
@@ -492,6 +506,12 @@ func TestEvalBool_noErrors(t *testing.T) {
 		{"9 + (8 + 2) > 19", false},
 		{"roundto(8+2.25, 1) == 10.3", true},
 		{"roundto(8+2.25, 1) == 10.25", false},
+
+		/* Check that chars can be used and strings indexed*/
+		{"\"Hello world\"[6] == 'w'", true},
+		{"\"Hello world\"[6] == 'h'", false},
+		{"\"Hello world\"[6] == \"w\"", true},
+		{"\"Hello world\"[6] == \"h\"", false},
 
 		/* Check composite literals can be used */
 		{"[]lit{7,9,2}[1] == 9", true},

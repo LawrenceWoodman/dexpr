@@ -22,6 +22,7 @@ var ErrDivByZero = errors.New("divide by zero")
 var ErrIncompatibleTypes = errors.New("incompatible types")
 var ErrInvalidCompositeType = errors.New("invalid composite type")
 var ErrInvalidIndex = errors.New("index out of range")
+var ErrTypeNotIndexable = errors.New("type does not support indexing")
 var ErrSyntax = errors.New("syntax error")
 
 type Expr struct {
@@ -128,7 +129,8 @@ func nodeToLiteral(
 	callFuncs map[string]CallFun,
 	eltStore map[int64][]*dlit.Literal,
 	eltStoreNum int64,
-	n ast.Node) *dlit.Literal {
+	n ast.Node,
+) *dlit.Literal {
 	switch x := n.(type) {
 	case *ast.BasicLit:
 		switch x.Kind {
@@ -136,6 +138,8 @@ func nodeToLiteral(
 			return dlit.MustNew(x.Value)
 		case token.FLOAT:
 			return dlit.MustNew(x.Value)
+		case token.CHAR:
+			fallthrough
 		case token.STRING:
 			uc, err := strconv.Unquote(x.Value)
 			if err != nil {
@@ -180,27 +184,48 @@ func nodeToLiteral(
 		eltStoreNum++
 		return dlit.MustNew(rNum)
 	case *ast.IndexExpr:
-		indexX := nodeToLiteral(vars, callFuncs, eltStore, eltStoreNum, x.X)
-		if indexX.Err() != nil {
-			return indexX
-		}
-		ix, isInt := indexX.Int()
-		if !isInt {
-			return dlit.MustNew(ErrSyntax)
-		}
-		indexIndex := nodeToLiteral(vars, callFuncs, eltStore, eltStoreNum, x.Index)
-		ii, isInt := indexIndex.Int()
-		if !isInt {
-			return dlit.MustNew(ErrSyntax)
-		}
-		if ii >= int64(len(eltStore[ix])) {
-			return dlit.MustNew(ErrInvalidIndex)
-		}
-		return eltStore[ix][ii]
+		return indexExprToLiteral(vars, callFuncs, eltStore, eltStoreNum, x)
 	case *ast.ArrayType:
 		return nodeToLiteral(vars, callFuncs, eltStore, eltStoreNum, x.Elt)
 	}
 	return dlit.MustNew(ErrSyntax)
+}
+
+func indexExprToLiteral(
+	vars map[string]*dlit.Literal,
+	callFuncs map[string]CallFun,
+	eltStore map[int64][]*dlit.Literal,
+	eltStoreNum int64,
+	ie *ast.IndexExpr,
+) *dlit.Literal {
+	indexX := nodeToLiteral(vars, callFuncs, eltStore, eltStoreNum, ie.X)
+	indexIndex := nodeToLiteral(vars, callFuncs, eltStore, eltStoreNum, ie.Index)
+
+	if indexX.Err() != nil {
+		return indexX
+	}
+	if indexIndex.Err() != nil {
+		return indexIndex
+	}
+	ii, isInt := indexIndex.Int()
+	if !isInt {
+		return dlit.MustNew(ErrSyntax)
+	}
+	if bl, ok := ie.X.(*ast.BasicLit); ok {
+		if bl.Kind != token.STRING {
+			return dlit.MustNew(ErrTypeNotIndexable)
+		}
+		return dlit.NewString(string(indexX.String()[ii]))
+	}
+
+	ix, isInt := indexX.Int()
+	if !isInt {
+		return dlit.MustNew(ErrSyntax)
+	}
+	if ii >= int64(len(eltStore[ix])) {
+		return dlit.MustNew(ErrInvalidIndex)
+	}
+	return eltStore[ix][ii]
 }
 
 func exprSliceToDLiterals(
