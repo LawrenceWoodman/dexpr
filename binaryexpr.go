@@ -16,12 +16,11 @@ import (
 func binaryExprToLiteral(
 	vars map[string]*dlit.Literal,
 	callFuncs map[string]CallFun,
-	eltStore map[int64][]*dlit.Literal,
-	eltStoreNum int64,
+	eltStore *eltStore,
 	be *ast.BinaryExpr,
 ) *dlit.Literal {
-	lh := nodeToLiteral(vars, callFuncs, eltStore, eltStoreNum, be.X)
-	rh := nodeToLiteral(vars, callFuncs, eltStore, eltStoreNum, be.Y)
+	lh := nodeToLiteral(vars, callFuncs, eltStore, be.X)
+	rh := nodeToLiteral(vars, callFuncs, eltStore, be.Y)
 	if lh.Err() != nil {
 		return lh
 	} else if rh.Err() != nil {

@@ -46,10 +46,8 @@ func (expr *Expr) Eval(
 ) *dlit.Literal {
 	var l *dlit.Literal
 	inspector := func(n ast.Node) bool {
-		// The eltStore is where the composite types store there elements
-		eltStore := map[int64][]*dlit.Literal{}
-		eltStoreNum := int64(0)
-		l = nodeToLiteral(vars, callFuncs, eltStore, eltStoreNum, n)
+		eltStore := newEltStore()
+		l = nodeToLiteral(vars, callFuncs, eltStore, n)
 		return false
 	}
 	ast.Inspect(expr.Node, inspector)
@@ -83,8 +81,7 @@ var kinds = map[string]*dlit.Literal{
 func nodeToLiteral(
 	vars map[string]*dlit.Literal,
 	callFuncs map[string]CallFun,
-	eltStore map[int64][]*dlit.Literal,
-	eltStoreNum int64,
+	eltStore *eltStore,
 	n ast.Node,
 ) *dlit.Literal {
 	switch x := n.(type) {
@@ -110,32 +107,30 @@ func nodeToLiteral(
 			return l
 		}
 	case *ast.ParenExpr:
-		return nodeToLiteral(vars, callFuncs, eltStore, eltStoreNum, x.X)
+		return nodeToLiteral(vars, callFuncs, eltStore, x.X)
 	case *ast.BinaryExpr:
-		return binaryExprToLiteral(vars, callFuncs, eltStore, eltStoreNum, x)
+		return binaryExprToLiteral(vars, callFuncs, eltStore, x)
 	case *ast.UnaryExpr:
-		rh := nodeToLiteral(vars, callFuncs, eltStore, eltStoreNum, x.X)
+		rh := nodeToLiteral(vars, callFuncs, eltStore, x.X)
 		if err := rh.Err(); err != nil {
 			return rh
 		}
 		return evalUnaryExpr(rh, x.Op)
 	case *ast.CallExpr:
-		args := exprSliceToDLiterals(vars, callFuncs, eltStore, eltStoreNum, x.Args)
+		args := exprSliceToDLiterals(vars, callFuncs, eltStore, x.Args)
 		return callFun(callFuncs, x.Fun, args)
 	case *ast.CompositeLit:
-		kind := nodeToLiteral(kinds, callFuncs, eltStore, eltStoreNum, x.Type)
+		kind := nodeToLiteral(kinds, callFuncs, eltStore, x.Type)
 		if kind.String() != "lit" {
 			return dlit.MustNew(ErrInvalidCompositeType)
 		}
-		elts := exprSliceToDLiterals(vars, callFuncs, eltStore, eltStoreNum, x.Elts)
-		eltStore[eltStoreNum] = elts
-		rNum := eltStoreNum
-		eltStoreNum++
+		elts := exprSliceToDLiterals(vars, callFuncs, eltStore, x.Elts)
+		rNum := eltStore.Add(elts)
 		return dlit.MustNew(rNum)
 	case *ast.IndexExpr:
-		return indexExprToLiteral(vars, callFuncs, eltStore, eltStoreNum, x)
+		return indexExprToLiteral(vars, callFuncs, eltStore, x)
 	case *ast.ArrayType:
-		return nodeToLiteral(vars, callFuncs, eltStore, eltStoreNum, x.Elt)
+		return nodeToLiteral(vars, callFuncs, eltStore, x.Elt)
 	}
 	return dlit.MustNew(ErrSyntax)
 }
@@ -143,12 +138,11 @@ func nodeToLiteral(
 func indexExprToLiteral(
 	vars map[string]*dlit.Literal,
 	callFuncs map[string]CallFun,
-	eltStore map[int64][]*dlit.Literal,
-	eltStoreNum int64,
+	eltStore *eltStore,
 	ie *ast.IndexExpr,
 ) *dlit.Literal {
-	indexX := nodeToLiteral(vars, callFuncs, eltStore, eltStoreNum, ie.X)
-	indexIndex := nodeToLiteral(vars, callFuncs, eltStore, eltStoreNum, ie.Index)
+	indexX := nodeToLiteral(vars, callFuncs, eltStore, ie.X)
+	indexIndex := nodeToLiteral(vars, callFuncs, eltStore, ie.Index)
 
 	if indexX.Err() != nil {
 		return indexX
@@ -170,22 +164,22 @@ func indexExprToLiteral(
 	if !isInt {
 		return dlit.MustNew(ErrSyntax)
 	}
-	if ii >= int64(len(eltStore[ix])) {
+	elts := eltStore.Get(ix)
+	if ii >= int64(len(elts)) {
 		return dlit.MustNew(ErrInvalidIndex)
 	}
-	return eltStore[ix][ii]
+	return elts[ii]
 }
 
 func exprSliceToDLiterals(
 	vars map[string]*dlit.Literal,
 	callFuncs map[string]CallFun,
-	eltStore map[int64][]*dlit.Literal,
-	eltStoreNum int64,
+	eltStore *eltStore,
 	callArgs []ast.Expr,
 ) []*dlit.Literal {
 	r := make([]*dlit.Literal, len(callArgs))
 	for i, arg := range callArgs {
-		r[i] = nodeToLiteral(vars, callFuncs, eltStore, eltStoreNum, arg)
+		r[i] = nodeToLiteral(vars, callFuncs, eltStore, arg)
 	}
 	return r
 }
