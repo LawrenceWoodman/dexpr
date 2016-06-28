@@ -212,22 +212,6 @@ func evalUnaryExpr(rh *dlit.Literal, op token.Token) *dlit.Literal {
 	return r
 }
 
-func literalToQuotedString(l *dlit.Literal) string {
-	_, isInt := l.Int()
-	if isInt {
-		return l.String()
-	}
-	_, isFloat := l.Float()
-	if isFloat {
-		return l.String()
-	}
-	_, isBool := l.Bool()
-	if isBool {
-		return l.String()
-	}
-	return fmt.Sprintf("\"%s\"", l.String())
-}
-
 func opNeg(l *dlit.Literal) *dlit.Literal {
 	lInt, lIsInt := l.Int()
 	if lIsInt {
