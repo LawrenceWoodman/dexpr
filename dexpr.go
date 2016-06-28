@@ -5,10 +5,10 @@
  *
  * Licensed under an MIT licence.  Please see LICENCE.md for details.
  */
+
 package dexpr
 
 import (
-	"errors"
 	"fmt"
 	"github.com/lawrencewoodman/dlit"
 	"go/ast"
@@ -17,53 +17,9 @@ import (
 	"strconv"
 )
 
-var ErrUnderflowOverflow = errors.New("underflow/overflow")
-var ErrDivByZero = errors.New("divide by zero")
-var ErrIncompatibleTypes = errors.New("incompatible types")
-var ErrInvalidCompositeType = errors.New("invalid composite type")
-var ErrInvalidIndex = errors.New("index out of range")
-var ErrTypeNotIndexable = errors.New("type does not support indexing")
-var ErrSyntax = errors.New("syntax error")
-
 type Expr struct {
 	Expr string
 	Node ast.Node
-}
-
-type ErrInvalidExpr struct {
-	Expr string
-	Err  error
-}
-
-func (e ErrInvalidExpr) Error() string {
-	return fmt.Sprintf("invalid expression: %s (%s)", e.Expr, e.Err)
-}
-
-type ErrInvalidOp token.Token
-
-func (e ErrInvalidOp) Error() string {
-	return fmt.Sprintf("invalid operator: %s", token.Token(e))
-}
-
-type ErrFunctionNotExist string
-
-func (e ErrFunctionNotExist) Error() string {
-	return fmt.Sprintf("function doesn't exist: %s", string(e))
-}
-
-type ErrVarNotExist string
-
-func (e ErrVarNotExist) Error() string {
-	return fmt.Sprintf("variable doesn't exist: %s", string(e))
-}
-
-type ErrFunctionError struct {
-	FnName string
-	Err    error
-}
-
-func (e ErrFunctionError) Error() string {
-	return fmt.Sprintf("function: %s, returned error: %s", e.FnName, e.Err)
 }
 
 type CallFun func([]*dlit.Literal) (*dlit.Literal, error)
@@ -156,14 +112,7 @@ func nodeToLiteral(
 	case *ast.ParenExpr:
 		return nodeToLiteral(vars, callFuncs, eltStore, eltStoreNum, x.X)
 	case *ast.BinaryExpr:
-		lh := nodeToLiteral(vars, callFuncs, eltStore, eltStoreNum, x.X)
-		rh := nodeToLiteral(vars, callFuncs, eltStore, eltStoreNum, x.Y)
-		if err := lh.Err(); err != nil {
-			return lh
-		} else if err := rh.Err(); err != nil {
-			return rh
-		}
-		return evalBinaryExpr(lh, rh, x.Op)
+		return binaryExprToLiteral(vars, callFuncs, eltStore, eltStoreNum, x)
 	case *ast.UnaryExpr:
 		rh := nodeToLiteral(vars, callFuncs, eltStore, eltStoreNum, x.X)
 		if err := rh.Err(); err != nil {
@@ -203,8 +152,7 @@ func indexExprToLiteral(
 
 	if indexX.Err() != nil {
 		return indexX
-	}
-	if indexIndex.Err() != nil {
+	} else if indexIndex.Err() != nil {
 		return indexIndex
 	}
 	ii, isInt := indexIndex.Int()
@@ -259,42 +207,6 @@ func callFun(
 	return l
 }
 
-func evalBinaryExpr(lh *dlit.Literal, rh *dlit.Literal,
-	op token.Token) *dlit.Literal {
-	var r *dlit.Literal
-
-	switch op {
-	case token.LSS:
-		r = opLss(lh, rh)
-	case token.LEQ:
-		r = opLeq(lh, rh)
-	case token.EQL:
-		r = opEql(lh, rh)
-	case token.NEQ:
-		r = opNeq(lh, rh)
-	case token.GTR:
-		r = opGtr(lh, rh)
-	case token.GEQ:
-		r = opGeq(lh, rh)
-	case token.LAND:
-		r = opLand(lh, rh)
-	case token.LOR:
-		r = opLor(lh, rh)
-	case token.ADD:
-		r = opAdd(lh, rh)
-	case token.SUB:
-		r = opSub(lh, rh)
-	case token.MUL:
-		r = opMul(lh, rh)
-	case token.QUO:
-		r = opQuo(lh, rh)
-	default:
-		r, _ = dlit.New(ErrInvalidOp(op))
-	}
-
-	return r
-}
-
 func evalUnaryExpr(rh *dlit.Literal, op token.Token) *dlit.Literal {
 	var r *dlit.Literal
 	switch op {
@@ -320,224 +232,6 @@ func literalToQuotedString(l *dlit.Literal) string {
 		return l.String()
 	}
 	return fmt.Sprintf("\"%s\"", l.String())
-}
-
-func opLss(lh *dlit.Literal, rh *dlit.Literal) *dlit.Literal {
-	lhInt, lhIsInt := lh.Int()
-	rhInt, rhIsInt := rh.Int()
-	if lhIsInt && rhIsInt {
-		return dlit.MustNew(lhInt < rhInt)
-	}
-
-	rhFloat, rhIsFloat := rh.Float()
-	lhFloat, lhIsFloat := lh.Float()
-	if lhIsFloat && rhIsFloat {
-		return dlit.MustNew(lhFloat < rhFloat)
-	}
-
-	return dlit.MustNew(ErrIncompatibleTypes)
-}
-
-func opLeq(lh *dlit.Literal, rh *dlit.Literal) *dlit.Literal {
-	lhInt, lhIsInt := lh.Int()
-	rhInt, rhIsInt := rh.Int()
-	if lhIsInt && rhIsInt {
-		return dlit.MustNew(lhInt <= rhInt)
-	}
-
-	rhFloat, rhIsFloat := rh.Float()
-	lhFloat, lhIsFloat := lh.Float()
-	if lhIsFloat && rhIsFloat {
-		return dlit.MustNew(lhFloat <= rhFloat)
-	}
-
-	return dlit.MustNew(ErrIncompatibleTypes)
-}
-
-func opGtr(lh *dlit.Literal, rh *dlit.Literal) *dlit.Literal {
-	lhInt, lhIsInt := lh.Int()
-	rhInt, rhIsInt := rh.Int()
-	if lhIsInt && rhIsInt {
-		return dlit.MustNew(lhInt > rhInt)
-	}
-
-	lhFloat, lhIsFloat := lh.Float()
-	rhFloat, rhIsFloat := rh.Float()
-	if lhIsFloat && rhIsFloat {
-		return dlit.MustNew(lhFloat > rhFloat)
-	}
-
-	return dlit.MustNew(ErrIncompatibleTypes)
-}
-
-func opGeq(lh *dlit.Literal, rh *dlit.Literal) *dlit.Literal {
-	lhInt, lhIsInt := lh.Int()
-	rhInt, rhIsInt := rh.Int()
-	if lhIsInt && rhIsInt {
-		return dlit.MustNew(lhInt >= rhInt)
-	}
-
-	lhFloat, lhIsFloat := lh.Float()
-	rhFloat, rhIsFloat := rh.Float()
-	if lhIsFloat && rhIsFloat {
-		return dlit.MustNew(lhFloat >= rhFloat)
-	}
-
-	return dlit.MustNew(ErrIncompatibleTypes)
-}
-
-func opEql(lh *dlit.Literal, rh *dlit.Literal) *dlit.Literal {
-	lhInt, lhIsInt := lh.Int()
-	rhInt, rhIsInt := rh.Int()
-	if lhIsInt && rhIsInt {
-		return dlit.MustNew(lhInt == rhInt)
-	}
-
-	lhFloat, lhIsFloat := lh.Float()
-	rhFloat, rhIsFloat := rh.Float()
-	if lhIsFloat && rhIsFloat {
-		return dlit.MustNew(lhFloat == rhFloat)
-	}
-
-	// Don't compare bools as otherwise with the way that floats or ints
-	// are cast to bools you would find that "True" == 1.0 because they would
-	// both convert to true bools
-	lhErr := lh.Err()
-	rhErr := rh.Err()
-	if lhErr != nil || rhErr != nil {
-		return dlit.MustNew(ErrIncompatibleTypes)
-	}
-
-	return dlit.MustNew(lh.String() == rh.String())
-}
-
-func opNeq(lh *dlit.Literal, rh *dlit.Literal) *dlit.Literal {
-	lhInt, lhIsInt := lh.Int()
-	rhInt, rhIsInt := rh.Int()
-	if lhIsInt && rhIsInt {
-		return dlit.MustNew(lhInt != rhInt)
-	}
-
-	lhFloat, lhIsFloat := lh.Float()
-	rhFloat, rhIsFloat := rh.Float()
-	if lhIsFloat && rhIsFloat {
-		dlit.MustNew(lhFloat != rhFloat)
-	}
-
-	// Don't compare bools as otherwise with the way that floats or ints
-	// are cast to bools you would find that "True" == 1.0 because they would
-	// both convert to true bools
-	lhErr := lh.Err()
-	rhErr := rh.Err()
-	if lhErr != nil || rhErr != nil {
-		return dlit.MustNew(ErrIncompatibleTypes)
-	}
-
-	return dlit.MustNew(lh.String() != rh.String())
-}
-
-func opLand(lh *dlit.Literal, rh *dlit.Literal) *dlit.Literal {
-	lhBool, lhIsBool := lh.Bool()
-	rhBool, rhIsBool := rh.Bool()
-	if lhIsBool && rhIsBool {
-		return dlit.MustNew(lhBool && rhBool)
-	}
-
-	return dlit.MustNew(ErrIncompatibleTypes)
-}
-
-func opLor(lh *dlit.Literal, rh *dlit.Literal) *dlit.Literal {
-	lhBool, lhIsBool := lh.Bool()
-	rhBool, rhIsBool := rh.Bool()
-	if lhIsBool && rhIsBool {
-		return dlit.MustNew(lhBool || rhBool)
-	}
-
-	return dlit.MustNew(ErrIncompatibleTypes)
-}
-
-func opAdd(lh *dlit.Literal, rh *dlit.Literal) *dlit.Literal {
-	lhInt, lhIsInt := lh.Int()
-	rhInt, rhIsInt := rh.Int()
-	if lhIsInt && rhIsInt {
-		r := lhInt + rhInt
-		if (r < lhInt) != (rhInt < 0) {
-			return dlit.MustNew(ErrUnderflowOverflow)
-		}
-		return dlit.MustNew(r)
-	}
-
-	lhFloat, lhIsFloat := lh.Float()
-	rhFloat, rhIsFloat := rh.Float()
-	if lhIsFloat && rhIsFloat {
-		return dlit.MustNew(lhFloat + rhFloat)
-	}
-	return dlit.MustNew(ErrIncompatibleTypes)
-}
-
-func opSub(lh *dlit.Literal, rh *dlit.Literal) *dlit.Literal {
-	lhInt, lhIsInt := lh.Int()
-	rhInt, rhIsInt := rh.Int()
-	if lhIsInt && rhIsInt {
-		r := lhInt - rhInt
-		if (r > lhInt) != (rhInt < 0) {
-			return dlit.MustNew(ErrUnderflowOverflow)
-		}
-		return dlit.MustNew(r)
-	}
-
-	lhFloat, lhIsFloat := lh.Float()
-	rhFloat, rhIsFloat := rh.Float()
-	if lhIsFloat && rhIsFloat {
-		return dlit.MustNew(lhFloat - rhFloat)
-	}
-	return dlit.MustNew(ErrIncompatibleTypes)
-}
-
-func opMul(lh *dlit.Literal, rh *dlit.Literal) *dlit.Literal {
-	lhInt, lhIsInt := lh.Int()
-	rhInt, rhIsInt := rh.Int()
-	if lhIsInt && rhIsInt {
-		// Overflow detection inspired by suggestion from Rob Pike on Go-nuts group:
-		//   https://groups.google.com/d/msg/Golang-nuts/h5oSN5t3Au4/KaNQREhZh0QJ
-		if lhInt == 0 || rhInt == 0 || lhInt == 1 || rhInt == 1 {
-			return dlit.MustNew(lhInt * rhInt)
-		}
-		if lhInt == math.MinInt64 || rhInt == math.MinInt64 {
-			return dlit.MustNew(ErrUnderflowOverflow)
-		}
-		r := lhInt * rhInt
-		if r/rhInt != lhInt {
-			return dlit.MustNew(ErrUnderflowOverflow)
-		}
-		return dlit.MustNew(r)
-	}
-
-	lhFloat, lhIsFloat := lh.Float()
-	rhFloat, rhIsFloat := rh.Float()
-	if lhIsFloat && rhIsFloat {
-		return dlit.MustNew(lhFloat * rhFloat)
-	}
-	return dlit.MustNew(ErrIncompatibleTypes)
-}
-
-func opQuo(lh *dlit.Literal, rh *dlit.Literal) *dlit.Literal {
-	lhInt, lhIsInt := lh.Int()
-	rhInt, rhIsInt := rh.Int()
-
-	if rhIsInt && rhInt == 0 {
-		return dlit.MustNew(ErrDivByZero)
-	}
-	if lhIsInt && rhIsInt && lhInt%rhInt == 0 {
-		return dlit.MustNew(lhInt / rhInt)
-	}
-
-	lhFloat, lhIsFloat := lh.Float()
-	rhFloat, rhIsFloat := rh.Float()
-	if lhIsFloat && rhIsFloat {
-		return dlit.MustNew(lhFloat / rhFloat)
-	}
-	return dlit.MustNew(ErrIncompatibleTypes)
 }
 
 func opNeg(l *dlit.Literal) *dlit.Literal {
