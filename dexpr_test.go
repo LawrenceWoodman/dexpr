@@ -56,6 +56,9 @@ func TestNew_errors(t *testing.T) {
 		{"[lit{fred", ErrInvalidExpr{"[lit{fred", ErrSyntax}},
 		{"[lit{fred}", ErrInvalidExpr{"[lit{fred}", ErrSyntax}},
 		{"[]lit{fred", ErrInvalidExpr{"[]lit{fred", ErrSyntax}},
+		{"func() bool {return 1==1}",
+			ErrInvalidExpr{"func() bool {return 1==1}", ErrSyntax},
+		},
 
 		/* map not implemented */
 		{"map[lit]lit{\"fred\": 7, \"bob\": 9, \"alf\": 2}[\"bob\"] == 8",
