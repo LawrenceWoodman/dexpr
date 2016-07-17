@@ -493,6 +493,10 @@ func TestEvalBool_noErrors(t *testing.T) {
 		{"numStrC + numStrD == 8.0", true},
 		{"numStrC + numStrD == 8", true},
 		{"numStrC + numStrD > 8", false},
+
+		{"trueStr", true},
+		{"!trueStr", false},
+
 		{"9 > 8 && 2 < 3", true},
 		{"9 > 9 && 2 < 3", false},
 		{"9 > 8 && 3 < 3", false},
@@ -510,7 +514,7 @@ func TestEvalBool_noErrors(t *testing.T) {
 		{"roundto(8+2.25, 1) == 10.3", true},
 		{"roundto(8+2.25, 1) == 10.25", false},
 
-		/* Check that chars can be used and strings indexed*/
+		/* Check that chars can be used and strings indexed */
 		{"\"Hello world\"[6] == 'w'", true},
 		{"\"Hello world\"[6] == 'h'", false},
 		{"\"Hello world\"[6] == \"w\"", true},
@@ -545,6 +549,7 @@ func TestEvalBool_noErrors(t *testing.T) {
 		"numStrB":     dlit.MustNew("3"),
 		"numStrC":     dlit.MustNew("4.5"),
 		"numStrD":     dlit.MustNew("3.5"),
+		"trueStr":     dlit.MustNew(true),
 		"break":       dlit.MustNew(1),
 		"case":        dlit.MustNew(2),
 		"chan":        dlit.MustNew(3),
@@ -639,6 +644,7 @@ func TestEvalBool_errors(t *testing.T) {
 		{"-\"something\"", false,
 			ErrInvalidExpr{"-\"something\"", ErrIncompatibleTypes},
 		},
+		{"!5.2", false, ErrInvalidExpr{"!5.2", ErrIncompatibleTypes}},
 	}
 	vars := map[string]*dlit.Literal{}
 	funcs := map[string]CallFun{}
