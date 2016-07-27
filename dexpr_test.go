@@ -162,56 +162,56 @@ func TestEval_errors(t *testing.T) {
 			dlit.MustNew(
 				ErrInvalidExpr{
 					fmt.Sprintf("%d+%d", int64(math.MaxInt64), int64(math.MaxInt64)),
-					ErrUnderflowOverflow,
+					ErrOverflow,
 				}),
 		},
 		{fmt.Sprintf("%d+1", int64(math.MaxInt64)),
 			dlit.MustNew(
 				ErrInvalidExpr{
 					fmt.Sprintf("%d+1", int64(math.MaxInt64)),
-					ErrUnderflowOverflow,
+					ErrOverflow,
 				}),
 		},
 		{fmt.Sprintf("%d + -1", int64(math.MinInt64)),
 			dlit.MustNew(
 				ErrInvalidExpr{
 					fmt.Sprintf("%d + -1", int64(math.MinInt64)),
-					ErrUnderflowOverflow,
+					ErrOverflow,
 				}),
 		},
 		{fmt.Sprintf("%d - %d", int64(math.MaxInt64), int64(math.MinInt64)),
 			dlit.MustNew(
 				ErrInvalidExpr{
 					fmt.Sprintf("%d - %d", int64(math.MaxInt64), int64(math.MinInt64)),
-					ErrUnderflowOverflow,
+					ErrOverflow,
 				}),
 		},
 		{fmt.Sprintf("%d - -1", int64(math.MaxInt64)),
 			dlit.MustNew(
 				ErrInvalidExpr{
 					fmt.Sprintf("%d - -1", int64(math.MaxInt64)),
-					ErrUnderflowOverflow,
+					ErrOverflow,
 				}),
 		},
 		{fmt.Sprintf("%d - 1", int64(math.MinInt64)),
 			dlit.MustNew(
 				ErrInvalidExpr{
 					fmt.Sprintf("%d - 1", int64(math.MinInt64)),
-					ErrUnderflowOverflow,
+					ErrOverflow,
 				}),
 		},
 		{fmt.Sprintf("%d*2", int64(math.MaxInt64)),
 			dlit.MustNew(
 				ErrInvalidExpr{
 					fmt.Sprintf("%d*2", int64(math.MaxInt64)),
-					ErrUnderflowOverflow,
+					ErrOverflow,
 				}),
 		},
 		{fmt.Sprintf("%d*2", int64(math.MinInt64)),
 			dlit.MustNew(
 				ErrInvalidExpr{
 					fmt.Sprintf("%d*2", int64(math.MinInt64)),
-					ErrUnderflowOverflow,
+					ErrOverflow,
 				}),
 		},
 
