@@ -115,6 +115,32 @@ func TestEval_noerrors(t *testing.T) {
 
 		{"roundto(5.567, 2)", dlit.MustNew(5.57)},
 		{"roundto(-17.5, 0)", dlit.MustNew(-17)},
+
+		/* Tests that integer overlow is prevented by switching to Float */
+		{fmt.Sprintf("%d+%d", int64(math.MaxInt64), int64(math.MaxInt64)),
+			dlit.MustNew(float64(math.MaxInt64) + float64(math.MaxInt64))},
+		{fmt.Sprintf("%d*%d", int64(math.MaxInt64), int64(math.MaxInt64)),
+			dlit.MustNew(float64(math.MaxInt64) * float64(math.MaxInt64))},
+		{fmt.Sprintf("%d*%d", int64(math.MinInt64), int64(math.MinInt64)),
+			dlit.MustNew(float64(math.MinInt64) * float64(math.MinInt64))},
+		{fmt.Sprintf("%d*%d", int64(math.MaxInt64), int64(math.MinInt64)),
+			dlit.MustNew(float64(math.MaxInt64) * float64(math.MinInt64))},
+		{fmt.Sprintf("%d+1", int64(math.MaxInt64)),
+			dlit.MustNew(float64(math.MaxInt64) + 1)},
+		{fmt.Sprintf("%d-1", int64(math.MinInt64)),
+			dlit.MustNew(float64(math.MinInt64) - 1)},
+		{fmt.Sprintf("%d + -1", int64(math.MinInt64)),
+			dlit.MustNew(float64(math.MinInt64) + -1)},
+		{fmt.Sprintf("%d - %d", int64(math.MaxInt64), int64(math.MinInt64)),
+			dlit.MustNew(float64(math.MaxInt64) - float64(math.MinInt64))},
+		{fmt.Sprintf("%d - -1", int64(math.MaxInt64)),
+			dlit.MustNew(float64(math.MaxInt64) - -1)},
+		{fmt.Sprintf("%d - 1", int64(math.MinInt64)),
+			dlit.MustNew(float64(math.MinInt64) - -1)},
+		{fmt.Sprintf("%d*2", int64(math.MaxInt64)),
+			dlit.MustNew(float64(math.MaxInt64) * 2)},
+		{fmt.Sprintf("%d*2", int64(math.MinInt64)),
+			dlit.MustNew(float64(math.MinInt64) * 2)},
 	}
 	vars := map[string]*dlit.Literal{
 		"a":       dlit.MustNew(4),
@@ -158,62 +184,6 @@ func TestEval_errors(t *testing.T) {
 			ErrInvalidExpr{"roundto(5.567, 2, 9, 23)",
 				ErrFunctionError{"roundto", errTooManyArguments}},
 		)},
-		{fmt.Sprintf("%d+%d", int64(math.MaxInt64), int64(math.MaxInt64)),
-			dlit.MustNew(
-				ErrInvalidExpr{
-					fmt.Sprintf("%d+%d", int64(math.MaxInt64), int64(math.MaxInt64)),
-					ErrOverflow,
-				}),
-		},
-		{fmt.Sprintf("%d+1", int64(math.MaxInt64)),
-			dlit.MustNew(
-				ErrInvalidExpr{
-					fmt.Sprintf("%d+1", int64(math.MaxInt64)),
-					ErrOverflow,
-				}),
-		},
-		{fmt.Sprintf("%d + -1", int64(math.MinInt64)),
-			dlit.MustNew(
-				ErrInvalidExpr{
-					fmt.Sprintf("%d + -1", int64(math.MinInt64)),
-					ErrOverflow,
-				}),
-		},
-		{fmt.Sprintf("%d - %d", int64(math.MaxInt64), int64(math.MinInt64)),
-			dlit.MustNew(
-				ErrInvalidExpr{
-					fmt.Sprintf("%d - %d", int64(math.MaxInt64), int64(math.MinInt64)),
-					ErrOverflow,
-				}),
-		},
-		{fmt.Sprintf("%d - -1", int64(math.MaxInt64)),
-			dlit.MustNew(
-				ErrInvalidExpr{
-					fmt.Sprintf("%d - -1", int64(math.MaxInt64)),
-					ErrOverflow,
-				}),
-		},
-		{fmt.Sprintf("%d - 1", int64(math.MinInt64)),
-			dlit.MustNew(
-				ErrInvalidExpr{
-					fmt.Sprintf("%d - 1", int64(math.MinInt64)),
-					ErrOverflow,
-				}),
-		},
-		{fmt.Sprintf("%d*2", int64(math.MaxInt64)),
-			dlit.MustNew(
-				ErrInvalidExpr{
-					fmt.Sprintf("%d*2", int64(math.MaxInt64)),
-					ErrOverflow,
-				}),
-		},
-		{fmt.Sprintf("%d*2", int64(math.MinInt64)),
-			dlit.MustNew(
-				ErrInvalidExpr{
-					fmt.Sprintf("%d*2", int64(math.MinInt64)),
-					ErrOverflow,
-				}),
-		},
 
 		/* Composite literals */
 		{"[]int{7,9,2}[1] == 9",
