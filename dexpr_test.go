@@ -29,7 +29,7 @@ func TestMustNew(t *testing.T) {
 
 func TestMustNew_panic(t *testing.T) {
 	expr := "/bob harry"
-	wantPanic := ErrInvalidExpr{"/bob harry", ErrSyntax}
+	wantPanic := InvalidExprError{"/bob harry", ErrSyntax}
 	paniced := false
 	defer func() {
 		if r := recover(); r != nil {
@@ -51,23 +51,23 @@ func TestNew_errors(t *testing.T) {
 		in        string
 		wantError error
 	}{
-		{"7 {} 3", ErrInvalidExpr{"7 {} 3", ErrSyntax}},
-		{"8/cot££t", ErrInvalidExpr{"8/cot££t", ErrSyntax}},
-		{"[lit{fred", ErrInvalidExpr{"[lit{fred", ErrSyntax}},
-		{"[lit{fred}", ErrInvalidExpr{"[lit{fred}", ErrSyntax}},
-		{"[]lit{fred", ErrInvalidExpr{"[]lit{fred", ErrSyntax}},
+		{"7 {} 3", InvalidExprError{"7 {} 3", ErrSyntax}},
+		{"8/cot££t", InvalidExprError{"8/cot££t", ErrSyntax}},
+		{"[lit{fred", InvalidExprError{"[lit{fred", ErrSyntax}},
+		{"[lit{fred}", InvalidExprError{"[lit{fred}", ErrSyntax}},
+		{"[]lit{fred", InvalidExprError{"[]lit{fred", ErrSyntax}},
 		{"func() bool {return 1==1}",
-			ErrInvalidExpr{"func() bool {return 1==1}", ErrSyntax},
+			InvalidExprError{"func() bool {return 1==1}", ErrSyntax},
 		},
 
 		/* map not implemented */
 		{"map[lit]lit{\"fred\": 7, \"bob\": 9, \"alf\": 2}[\"bob\"] == 8",
-			ErrInvalidExpr{
+			InvalidExprError{
 				"map[lit]lit{\"fred\": 7, \"bob\": 9, \"alf\": 2}[\"bob\"] == 8",
 				ErrSyntax,
 			}},
 		{"map[lit]lit{\"fred\": 7, \"bob\": 9, \"alf\": 2}[\"bob\"] == 9",
-			ErrInvalidExpr{
+			InvalidExprError{
 				"map[lit]lit{\"fred\": 7, \"bob\": 9, \"alf\": 2}[\"bob\"] == 9",
 				ErrSyntax,
 			}},
@@ -171,54 +171,54 @@ func TestEval_errors(t *testing.T) {
 		want *dlit.Literal
 	}{
 		{"8/bob", dlit.MustNew(
-			ErrInvalidExpr{"8/bob", ErrVarNotExist("bob")}),
+			InvalidExprError{"8/bob", VarNotExistError("bob")}),
 		},
 		{"8/(1 == 1)", dlit.MustNew(
-			ErrInvalidExpr{"8/(1 == 1)", ErrIncompatibleTypes},
+			InvalidExprError{"8/(1 == 1)", ErrIncompatibleTypes},
 		)},
-		{"8/0", dlit.MustNew(ErrInvalidExpr{"8/0", ErrDivByZero})},
+		{"8/0", dlit.MustNew(InvalidExprError{"8/0", ErrDivByZero})},
 		{"bob(5.567, 2)", dlit.MustNew(
-			ErrInvalidExpr{"bob(5.567, 2)", ErrFunctionNotExist("bob")},
+			InvalidExprError{"bob(5.567, 2)", FunctionNotExistError("bob")},
 		)},
 		{"roundto(5.567, 2, 9, 23)", dlit.MustNew(
-			ErrInvalidExpr{"roundto(5.567, 2, 9, 23)",
-				ErrFunctionError{"roundto", errTooManyArguments}},
+			InvalidExprError{"roundto(5.567, 2, 9, 23)",
+				FunctionError{"roundto", errTooManyArguments}},
 		)},
 
 		/* Composite literals */
 		{"[]int{7,9,2}[1] == 9",
 			dlit.MustNew(
-				ErrInvalidExpr{
+				InvalidExprError{
 					"[]int{7,9,2}[1] == 9",
 					ErrInvalidCompositeType,
 				})},
 		{"[]string{\"fred\",\"bob\",\"alf\"}[1] == \"bob\"",
 			dlit.MustNew(
-				ErrInvalidExpr{
+				InvalidExprError{
 					"[]string{\"fred\",\"bob\",\"alf\"}[1] == \"bob\"",
 					ErrInvalidCompositeType,
 				})},
 		{"[]lit{7,9,2}[3] == 9", dlit.MustNew(
-			ErrInvalidExpr{"[]lit{7,9,2}[3] == 9", ErrInvalidIndex},
+			InvalidExprError{"[]lit{7,9,2}[3] == 9", ErrInvalidIndex},
 		)},
 
 		/* Indexing non indexable values */
 		{"7[0] == 4",
 			dlit.MustNew(
-				ErrInvalidExpr{
+				InvalidExprError{
 					"7[0] == 4",
 					ErrTypeNotIndexable,
 				})},
 		{"7.2[0] == 4",
 			dlit.MustNew(
-				ErrInvalidExpr{
+				InvalidExprError{
 					"7.2[0] == 4",
 					ErrTypeNotIndexable,
 				})},
 
 		/* TODO: implement this
 		{fmt.Sprintf("%f+1", float64(math.MaxFloat64)), dlit.MustNew(
-			ErrInvalidExpr("Invalid operation: 9223372036854775807 + 1, Overflow")),
+			InvalidExprError("Invalid operation: 9223372036854775807 + 1, Overflow")),
 		},
 		*/
 		// TODO: Add test for overflow - largest int divided by 0.5
@@ -591,30 +591,30 @@ func TestEvalBool_errors(t *testing.T) {
 		want      bool
 		wantError error
 	}{
-		{"7 + 8", false, ErrInvalidExpr{"7 + 8", ErrIncompatibleTypes}},
+		{"7 + 8", false, InvalidExprError{"7 + 8", ErrIncompatibleTypes}},
 		{"7 < \"hello\"", false,
-			ErrInvalidExpr{"7 < \"hello\"", ErrIncompatibleTypes},
+			InvalidExprError{"7 < \"hello\"", ErrIncompatibleTypes},
 		},
 		{"\"world\" > 2.1", false,
-			ErrInvalidExpr{"\"world\" > 2.1", ErrIncompatibleTypes},
+			InvalidExprError{"\"world\" > 2.1", ErrIncompatibleTypes},
 		},
-		{"10 & 101", false, ErrInvalidExpr{"10 & 101", ErrInvalidOp(token.AND)}},
-		{"7 && 9", false, ErrInvalidExpr{"7 && 9", ErrIncompatibleTypes}},
+		{"10 & 101", false, InvalidExprError{"10 & 101", InvalidOpError(token.AND)}},
+		{"7 && 9", false, InvalidExprError{"7 && 9", ErrIncompatibleTypes}},
 		{"total > 20",
 			false,
-			ErrInvalidExpr{"total > 20", ErrVarNotExist("total")},
+			InvalidExprError{"total > 20", VarNotExistError("total")},
 		},
 		{"20 < total",
 			false,
-			ErrInvalidExpr{"20 < total", ErrVarNotExist("total")},
+			InvalidExprError{"20 < total", VarNotExistError("total")},
 		},
 		{"bob(8+2.257) == 7", false,
-			ErrInvalidExpr{"bob(8+2.257) == 7", ErrFunctionNotExist("bob")},
+			InvalidExprError{"bob(8+2.257) == 7", FunctionNotExistError("bob")},
 		},
 		{"-\"something\"", false,
-			ErrInvalidExpr{"-\"something\"", ErrIncompatibleTypes},
+			InvalidExprError{"-\"something\"", ErrIncompatibleTypes},
 		},
-		{"!5.2", false, ErrInvalidExpr{"!5.2", ErrIncompatibleTypes}},
+		{"!5.2", false, InvalidExprError{"!5.2", ErrIncompatibleTypes}},
 	}
 	vars := map[string]*dlit.Literal{}
 	funcs := map[string]CallFun{}
