@@ -22,7 +22,7 @@ func TestMustNew(t *testing.T) {
 	for _, c := range cases {
 		got := MustNew(c.in)
 		if got.String() != c.wantStr {
-			t.Errorf("MustNew(%q) - got: %s, want: %s", c.in, got, c.wantStr)
+			t.Errorf("MustNew(%v) - got: %s, want: %s", c.in, got, c.wantStr)
 		}
 	}
 }
@@ -556,10 +556,10 @@ func TestEvalBool_noErrors(t *testing.T) {
 		}
 		got, err := dexpr.EvalBool(vars, funcs)
 		if err != nil {
-			t.Errorf("EvalBool(vars, %q) err == %q", c.in, err)
+			t.Errorf("EvalBool(vars, %v) err == %v", c.in, err)
 		}
 		if got != c.want {
-			t.Errorf("EvalBool(vars, %q) == %q, want %q", c.in, got, c.want)
+			t.Errorf("EvalBool(vars, %v) == %v, want %v", c.in, got, c.want)
 		}
 	}
 }
@@ -625,13 +625,13 @@ func TestEvalBool_errors(t *testing.T) {
 		}
 		got, err := dexpr.EvalBool(vars, funcs)
 		if got != c.want {
-			t.Errorf("EvalBool(vars, %q) == %q, want %q", c.in, got, c.want)
+			t.Errorf("EvalBool(vars, %v) == %v, want %v", c.in, got, c.want)
 		}
 		if err == nil {
-			t.Errorf("EvalBool(vars, %q) err == nil, wantError %q",
+			t.Errorf("EvalBool(vars, %v) err == nil, wantError %v",
 				c.in, c.wantError)
 		} else if err != c.wantError {
-			t.Errorf("EvalBool(vars, %q) err == %q, wantError %q",
+			t.Errorf("EvalBool(vars, %v) err == %v, wantError %v",
 				c.in, err, c.wantError)
 		}
 	}
