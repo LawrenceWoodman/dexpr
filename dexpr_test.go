@@ -647,6 +647,33 @@ func TestEvalBool_errors(t *testing.T) {
 	}
 }
 
+/*************************
+ *       Benchmarks
+ *************************/
+func BenchmarkEvalBool_callFun(b *testing.B) {
+	b.StopTimer()
+	vars := map[string]*dlit.Literal{}
+	funcs := map[string]CallFun{
+		"roundto": roundTo,
+	}
+	want := true
+	dexpr, err := New("roundto(8+2.25, 1) == 10.3")
+	if err != nil {
+		b.Errorf("New: %s", err)
+	}
+	for n := 0; n < b.N; n++ {
+		b.StartTimer()
+		got, err := dexpr.EvalBool(vars, funcs)
+		b.StopTimer()
+		if err != nil {
+			b.Errorf("EvalBool: ", err)
+		}
+		if got != want {
+			b.Errorf("EvalBool - got: %v, want %v", got, want)
+		}
+	}
+}
+
 /**********************************
  *    Helper functions
  **********************************/

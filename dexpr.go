@@ -187,16 +187,19 @@ func exprSliceToDLiterals(
 func callFun(
 	callFuncs map[string]CallFun,
 	name ast.Expr,
-	args []*dlit.Literal) *dlit.Literal {
-	// TODO: Find more direct way of getting name as a string
-	nameString := fmt.Sprintf("%s", name)
-	f, exists := callFuncs[nameString]
+	args []*dlit.Literal,
+) *dlit.Literal {
+	id, ok := name.(*ast.Ident)
+	if !ok {
+		panic(fmt.Errorf("can't get name as *ast.Ident: %s", name))
+	}
+	f, exists := callFuncs[id.Name]
 	if !exists {
-		return dlit.MustNew(FunctionNotExistError(nameString))
+		return dlit.MustNew(FunctionNotExistError(id.Name))
 	}
 	l, err := f(args)
 	if err != nil {
-		return dlit.MustNew(FunctionError{nameString, err})
+		return dlit.MustNew(FunctionError{id.Name, err})
 	}
 	return l
 }
