@@ -586,6 +586,9 @@ func TestString(t *testing.T) {
 }
 
 func TestEvalBool_errors(t *testing.T) {
+	vars := map[string]*dlit.Literal{
+		"anError": dlit.MustNew(errors.New("this is an error")),
+	}
 	cases := []struct {
 		in        string
 		want      bool
@@ -615,8 +618,15 @@ func TestEvalBool_errors(t *testing.T) {
 			InvalidExprError{"-\"something\"", ErrIncompatibleTypes},
 		},
 		{"!5.2", false, InvalidExprError{"!5.2", ErrIncompatibleTypes}},
+		{"anError == anError",
+			false,
+			InvalidExprError{"anError == anError", vars["anError"].Err()},
+		},
+		{"anError != anError",
+			false,
+			InvalidExprError{"anError != anError", vars["anError"].Err()},
+		},
 	}
-	vars := map[string]*dlit.Literal{}
 	funcs := map[string]CallFun{}
 	for _, c := range cases {
 		dexpr, err := New(c.in)

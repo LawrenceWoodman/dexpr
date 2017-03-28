@@ -13,6 +13,9 @@ import (
 	"math"
 )
 
+var trueLiteral = dlit.MustNew(true)
+var falseLiteral = dlit.MustNew(false)
+
 func binaryExprToLiteral(
 	vars map[string]*dlit.Literal,
 	callFuncs map[string]CallFun,
@@ -122,71 +125,110 @@ func opGeq(lh *dlit.Literal, rh *dlit.Literal) *dlit.Literal {
 
 func opEql(lh *dlit.Literal, rh *dlit.Literal) *dlit.Literal {
 	lhInt, lhIsInt := lh.Int()
-	rhInt, rhIsInt := rh.Int()
-	if lhIsInt && rhIsInt {
-		return dlit.MustNew(lhInt == rhInt)
+	if lhIsInt {
+		if rhInt, rhIsInt := rh.Int(); rhIsInt {
+			if lhInt == rhInt {
+				return trueLiteral
+			} else {
+				return falseLiteral
+			}
+		}
 	}
 
 	lhFloat, lhIsFloat := lh.Float()
-	rhFloat, rhIsFloat := rh.Float()
-	if lhIsFloat && rhIsFloat {
-		return dlit.MustNew(lhFloat == rhFloat)
+	if lhIsFloat {
+		if rhFloat, rhIsFloat := rh.Float(); rhIsFloat {
+			if lhFloat == rhFloat {
+				return trueLiteral
+			} else {
+				return falseLiteral
+			}
+		}
 	}
 
 	// Don't compare bools as otherwise with the way that floats or ints
 	// are cast to bools you would find that "True" == 1.0 because they would
 	// both convert to true bools
-	lhErr := lh.Err()
-	rhErr := rh.Err()
-	if lhErr != nil || rhErr != nil {
+	if lhErr := lh.Err(); lhErr != nil {
 		return dlit.MustNew(ErrIncompatibleTypes)
 	}
 
-	return dlit.MustNew(lh.String() == rh.String())
+	if rhErr := rh.Err(); rhErr != nil {
+		return dlit.MustNew(ErrIncompatibleTypes)
+	}
+
+	if lh.String() == rh.String() {
+		return trueLiteral
+	}
+	return falseLiteral
 }
 
 func opNeq(lh *dlit.Literal, rh *dlit.Literal) *dlit.Literal {
 	lhInt, lhIsInt := lh.Int()
-	rhInt, rhIsInt := rh.Int()
-	if lhIsInt && rhIsInt {
-		return dlit.MustNew(lhInt != rhInt)
+	if lhIsInt {
+		if rhInt, rhIsInt := rh.Int(); rhIsInt {
+			if lhInt != rhInt {
+				return trueLiteral
+			} else {
+				return falseLiteral
+			}
+		}
 	}
 
 	lhFloat, lhIsFloat := lh.Float()
-	rhFloat, rhIsFloat := rh.Float()
-	if lhIsFloat && rhIsFloat {
-		dlit.MustNew(lhFloat != rhFloat)
+	if lhIsFloat {
+		if rhFloat, rhIsFloat := rh.Float(); rhIsFloat {
+			if lhFloat != rhFloat {
+				return trueLiteral
+			} else {
+				return falseLiteral
+			}
+		}
 	}
 
 	// Don't compare bools as otherwise with the way that floats or ints
 	// are cast to bools you would find that "True" == 1.0 because they would
 	// both convert to true bools
-	lhErr := lh.Err()
-	rhErr := rh.Err()
-	if lhErr != nil || rhErr != nil {
+
+	if lhErr := lh.Err(); lhErr != nil {
 		return dlit.MustNew(ErrIncompatibleTypes)
 	}
 
-	return dlit.MustNew(lh.String() != rh.String())
+	if rhErr := rh.Err(); rhErr != nil {
+		return dlit.MustNew(ErrIncompatibleTypes)
+	}
+
+	if lh.String() != rh.String() {
+		return trueLiteral
+	}
+	return falseLiteral
 }
 
 func opLand(lh *dlit.Literal, rh *dlit.Literal) *dlit.Literal {
 	lhBool, lhIsBool := lh.Bool()
-	rhBool, rhIsBool := rh.Bool()
-	if lhIsBool && rhIsBool {
-		return dlit.MustNew(lhBool && rhBool)
+	if lhIsBool {
+		if rhBool, rhIsBool := rh.Bool(); rhIsBool {
+			if lhBool && rhBool {
+				return trueLiteral
+			} else {
+				return falseLiteral
+			}
+		}
 	}
-
 	return dlit.MustNew(ErrIncompatibleTypes)
 }
 
 func opLor(lh *dlit.Literal, rh *dlit.Literal) *dlit.Literal {
 	lhBool, lhIsBool := lh.Bool()
-	rhBool, rhIsBool := rh.Bool()
-	if lhIsBool && rhIsBool {
-		return dlit.MustNew(lhBool || rhBool)
+	if lhIsBool {
+		if rhBool, rhIsBool := rh.Bool(); rhIsBool {
+			if lhBool || rhBool {
+				return trueLiteral
+			} else {
+				return falseLiteral
+			}
+		}
 	}
-
 	return dlit.MustNew(ErrIncompatibleTypes)
 }
 
