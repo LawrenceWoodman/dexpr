@@ -249,3 +249,182 @@ func BenchmarkOpLor(b *testing.B) {
 		}
 	}
 }
+
+func BenchmarkOpLss(b *testing.B) {
+	b.StopTimer()
+	for n := 0; n < b.N; n++ {
+		cases := []struct {
+			lh   *dlit.Literal
+			rh   *dlit.Literal
+			want *dlit.Literal
+		}{
+			{lh: dlit.MustNew(5), rh: dlit.MustNew(6),
+				want: dlit.MustNew(true),
+			},
+			{lh: dlit.MustNew(5), rh: dlit.MustNew(5.5),
+				want: dlit.MustNew(true),
+			},
+			{lh: dlit.MustNew(5), rh: dlit.MustNew(5),
+				want: dlit.MustNew(false),
+			},
+			{lh: dlit.MustNew(6), rh: dlit.MustNew(5),
+				want: dlit.MustNew(false),
+			},
+			{lh: dlit.MustNew(5.5), rh: dlit.MustNew(5),
+				want: dlit.MustNew(false),
+			},
+			{lh: dlit.MustNew(true), rh: dlit.MustNew(5),
+				want: dlit.MustNew(ErrIncompatibleTypes),
+			},
+			{lh: dlit.MustNew(5), rh: dlit.MustNew(true),
+				want: dlit.MustNew(ErrIncompatibleTypes),
+			},
+		}
+		for _, c := range cases {
+			b.StartTimer()
+			got := opLss(c.lh, c.rh)
+			b.StopTimer()
+			if got.String() != c.want.String() {
+				b.Errorf("opLss(%s, %s) - got: %s, want: %s", c.lh, c.rh, got, c.want)
+			}
+		}
+	}
+}
+
+func BenchmarkOpLeq(b *testing.B) {
+	b.StopTimer()
+	for n := 0; n < b.N; n++ {
+		cases := []struct {
+			lh   *dlit.Literal
+			rh   *dlit.Literal
+			want *dlit.Literal
+		}{
+			{lh: dlit.MustNew(5), rh: dlit.MustNew(6),
+				want: dlit.MustNew(true),
+			},
+			{lh: dlit.MustNew(5), rh: dlit.MustNew(5.5),
+				want: dlit.MustNew(true),
+			},
+			{lh: dlit.MustNew(5), rh: dlit.MustNew(5),
+				want: dlit.MustNew(true),
+			},
+			{lh: dlit.MustNew(5.5), rh: dlit.MustNew(5.5),
+				want: dlit.MustNew(true),
+			},
+			{lh: dlit.MustNew(6), rh: dlit.MustNew(5),
+				want: dlit.MustNew(false),
+			},
+			{lh: dlit.MustNew(5.5), rh: dlit.MustNew(5),
+				want: dlit.MustNew(false),
+			},
+			{lh: dlit.MustNew(true), rh: dlit.MustNew(5),
+				want: dlit.MustNew(ErrIncompatibleTypes),
+			},
+			{lh: dlit.MustNew(5), rh: dlit.MustNew(true),
+				want: dlit.MustNew(ErrIncompatibleTypes),
+			},
+		}
+		for _, c := range cases {
+			b.StartTimer()
+			got := opLeq(c.lh, c.rh)
+			b.StopTimer()
+			if got.String() != c.want.String() {
+				b.Errorf("opLeq(%s, %s) - got: %s, want: %s", c.lh, c.rh, got, c.want)
+			}
+		}
+	}
+}
+
+func BenchmarkOpGtr(b *testing.B) {
+	b.StopTimer()
+	for n := 0; n < b.N; n++ {
+		cases := []struct {
+			lh   *dlit.Literal
+			rh   *dlit.Literal
+			want *dlit.Literal
+		}{
+			{lh: dlit.MustNew(5), rh: dlit.MustNew(6),
+				want: dlit.MustNew(false),
+			},
+			{lh: dlit.MustNew(5), rh: dlit.MustNew(5.5),
+				want: dlit.MustNew(false),
+			},
+			{lh: dlit.MustNew(5), rh: dlit.MustNew(5),
+				want: dlit.MustNew(false),
+			},
+			{lh: dlit.MustNew(5.5), rh: dlit.MustNew(5.5),
+				want: dlit.MustNew(false),
+			},
+			{lh: dlit.MustNew(6), rh: dlit.MustNew(5),
+				want: dlit.MustNew(true),
+			},
+			{lh: dlit.MustNew(5.5), rh: dlit.MustNew(5),
+				want: dlit.MustNew(true),
+			},
+			{lh: dlit.MustNew(5.5), rh: dlit.MustNew(5.1),
+				want: dlit.MustNew(true),
+			},
+			{lh: dlit.MustNew(true), rh: dlit.MustNew(5),
+				want: dlit.MustNew(ErrIncompatibleTypes),
+			},
+			{lh: dlit.MustNew(5), rh: dlit.MustNew(true),
+				want: dlit.MustNew(ErrIncompatibleTypes),
+			},
+		}
+		for _, c := range cases {
+			b.StartTimer()
+			got := opGtr(c.lh, c.rh)
+			b.StopTimer()
+			if got.String() != c.want.String() {
+				b.Errorf("opGtr(%s, %s) - got: %s, want: %s", c.lh, c.rh, got, c.want)
+			}
+		}
+	}
+}
+
+func BenchmarkOpGeq(b *testing.B) {
+	b.StopTimer()
+	for n := 0; n < b.N; n++ {
+		cases := []struct {
+			lh   *dlit.Literal
+			rh   *dlit.Literal
+			want *dlit.Literal
+		}{
+			{lh: dlit.MustNew(5), rh: dlit.MustNew(6),
+				want: dlit.MustNew(false),
+			},
+			{lh: dlit.MustNew(5), rh: dlit.MustNew(5.5),
+				want: dlit.MustNew(false),
+			},
+			{lh: dlit.MustNew(5), rh: dlit.MustNew(5),
+				want: dlit.MustNew(true),
+			},
+			{lh: dlit.MustNew(5.5), rh: dlit.MustNew(5.5),
+				want: dlit.MustNew(true),
+			},
+			{lh: dlit.MustNew(6), rh: dlit.MustNew(5),
+				want: dlit.MustNew(true),
+			},
+			{lh: dlit.MustNew(5.5), rh: dlit.MustNew(5),
+				want: dlit.MustNew(true),
+			},
+			{lh: dlit.MustNew(5.5), rh: dlit.MustNew(5.1),
+				want: dlit.MustNew(true),
+			},
+			{lh: dlit.MustNew(true), rh: dlit.MustNew(5),
+				want: dlit.MustNew(ErrIncompatibleTypes),
+			},
+			{lh: dlit.MustNew(5), rh: dlit.MustNew(true),
+				want: dlit.MustNew(ErrIncompatibleTypes),
+			},
+		}
+		for _, c := range cases {
+			b.StartTimer()
+			got := opGeq(c.lh, c.rh)
+			b.StopTimer()
+			if got.String() != c.want.String() {
+				b.Errorf("opGeq(%s, %s) - got: %s, want: %s", c.lh, c.rh, got, c.want)
+			}
+		}
+	}
+}

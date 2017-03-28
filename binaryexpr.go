@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016 Lawrence Woodman <lwoodman@vlifesystems.com>
+ * Copyright (C) 2016-2017 Lawrence Woodman <lwoodman@vlifesystems.com>
  *
  * Licensed under an MIT licence.  Please see LICENCE.md for details.
  */
@@ -61,65 +61,101 @@ func binaryExprToLiteral(
 
 func opLss(lh *dlit.Literal, rh *dlit.Literal) *dlit.Literal {
 	lhInt, lhIsInt := lh.Int()
-	rhInt, rhIsInt := rh.Int()
-	if lhIsInt && rhIsInt {
-		return dlit.MustNew(lhInt < rhInt)
+	if lhIsInt {
+		if rhInt, rhIsInt := rh.Int(); rhIsInt {
+			if lhInt < rhInt {
+				return trueLiteral
+			} else {
+				return falseLiteral
+			}
+		}
 	}
 
-	rhFloat, rhIsFloat := rh.Float()
 	lhFloat, lhIsFloat := lh.Float()
-	if lhIsFloat && rhIsFloat {
-		return dlit.MustNew(lhFloat < rhFloat)
+	if lhIsFloat {
+		if rhFloat, rhIsFloat := rh.Float(); rhIsFloat {
+			if lhFloat < rhFloat {
+				return trueLiteral
+			} else {
+				return falseLiteral
+			}
+		}
 	}
-
 	return dlit.MustNew(ErrIncompatibleTypes)
 }
 
 func opLeq(lh *dlit.Literal, rh *dlit.Literal) *dlit.Literal {
 	lhInt, lhIsInt := lh.Int()
-	rhInt, rhIsInt := rh.Int()
-	if lhIsInt && rhIsInt {
-		return dlit.MustNew(lhInt <= rhInt)
+	if lhIsInt {
+		if rhInt, rhIsInt := rh.Int(); rhIsInt {
+			if lhInt <= rhInt {
+				return trueLiteral
+			} else {
+				return falseLiteral
+			}
+		}
 	}
 
-	rhFloat, rhIsFloat := rh.Float()
 	lhFloat, lhIsFloat := lh.Float()
-	if lhIsFloat && rhIsFloat {
-		return dlit.MustNew(lhFloat <= rhFloat)
+	if lhIsFloat {
+		if rhFloat, rhIsFloat := rh.Float(); rhIsFloat {
+			if lhFloat <= rhFloat {
+				return trueLiteral
+			} else {
+				return falseLiteral
+			}
+		}
 	}
-
 	return dlit.MustNew(ErrIncompatibleTypes)
 }
 
 func opGtr(lh *dlit.Literal, rh *dlit.Literal) *dlit.Literal {
 	lhInt, lhIsInt := lh.Int()
-	rhInt, rhIsInt := rh.Int()
-	if lhIsInt && rhIsInt {
-		return dlit.MustNew(lhInt > rhInt)
+	if lhIsInt {
+		if rhInt, rhIsInt := rh.Int(); rhIsInt {
+			if lhInt > rhInt {
+				return trueLiteral
+			} else {
+				return falseLiteral
+			}
+		}
 	}
 
 	lhFloat, lhIsFloat := lh.Float()
-	rhFloat, rhIsFloat := rh.Float()
-	if lhIsFloat && rhIsFloat {
-		return dlit.MustNew(lhFloat > rhFloat)
+	if lhIsFloat {
+		if rhFloat, rhIsFloat := rh.Float(); rhIsFloat {
+			if lhFloat > rhFloat {
+				return trueLiteral
+			} else {
+				return falseLiteral
+			}
+		}
 	}
-
 	return dlit.MustNew(ErrIncompatibleTypes)
 }
 
 func opGeq(lh *dlit.Literal, rh *dlit.Literal) *dlit.Literal {
 	lhInt, lhIsInt := lh.Int()
-	rhInt, rhIsInt := rh.Int()
-	if lhIsInt && rhIsInt {
-		return dlit.MustNew(lhInt >= rhInt)
+	if lhIsInt {
+		if rhInt, rhIsInt := rh.Int(); rhIsInt {
+			if lhInt >= rhInt {
+				return trueLiteral
+			} else {
+				return falseLiteral
+			}
+		}
 	}
 
 	lhFloat, lhIsFloat := lh.Float()
-	rhFloat, rhIsFloat := rh.Float()
-	if lhIsFloat && rhIsFloat {
-		return dlit.MustNew(lhFloat >= rhFloat)
+	if lhIsFloat {
+		if rhFloat, rhIsFloat := rh.Float(); rhIsFloat {
+			if lhFloat >= rhFloat {
+				return trueLiteral
+			} else {
+				return falseLiteral
+			}
+		}
 	}
-
 	return dlit.MustNew(ErrIncompatibleTypes)
 }
 
