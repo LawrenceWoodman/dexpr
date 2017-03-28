@@ -1,7 +1,7 @@
 /*
  * A package for evaluating dynamic expressions
  *
- * Copyright (C) 2016 Lawrence Woodman <lwoodman@vlifesystems.com>
+ * Copyright (C) 2016-2017 Lawrence Woodman <lwoodman@vlifesystems.com>
  *
  * Licensed under an MIT licence.  Please see LICENCE.md for details.
  */
@@ -219,7 +219,10 @@ func opNot(l *dlit.Literal) *dlit.Literal {
 	if !lIsBool {
 		return dlit.MustNew(ErrIncompatibleTypes)
 	}
-	return dlit.MustNew(!lBool)
+	if lBool {
+		return falseLiteral
+	}
+	return trueLiteral
 }
 
 func opNeg(l *dlit.Literal) *dlit.Literal {
