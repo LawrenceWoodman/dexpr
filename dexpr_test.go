@@ -650,27 +650,50 @@ func TestEvalBool_errors(t *testing.T) {
 /*************************
  *       Benchmarks
  *************************/
-func BenchmarkEvalBool_callFun(b *testing.B) {
+func BenchmarkEvalBool(b *testing.B) {
 	b.StopTimer()
-	vars := map[string]*dlit.Literal{}
+	vars := map[string]*dlit.Literal{
+		"flowIn":  dlit.MustNew(1.723),
+		"flowOut": dlit.MustNew(1.12),
+		"name":    dlit.NewString("Fred Wright"),
+	}
 	funcs := map[string]CallFun{
 		"roundto": roundTo,
 	}
-	want := true
-	dexpr, err := New("roundto(8+2.25, 1) == 10.3")
-	if err != nil {
-		b.Errorf("New: %s", err)
+	benchmarks := []struct {
+		expr string
+		want bool
+	}{
+		{expr: "roundto(8+2.25, 1) == 10.3", want: true},
+		{expr: "flowIn < flowOut", want: false},
+		{expr: "flowIn != 7", want: true},
+		{expr: "(flowIn < flowOut) && (flowIn != 7)", want: false},
+		{expr: "(flowIn < flowOut) || (flowIn != 7)", want: true},
+		{expr: "flowIn > -3", want: true},
+		{expr: "name == \"Fred Wright\"", want: true},
+		{expr: "[]lit{\"fred\", \"bob\", \"alf\"}[2] == \"alf\"", want: true},
+		{expr: "\"Hello world\"[6] == \"h\"", want: false},
+		{expr: "9 + (8 + 2) > 18", want: true},
 	}
-	for n := 0; n < b.N; n++ {
-		b.StartTimer()
-		got, err := dexpr.EvalBool(vars, funcs)
-		b.StopTimer()
-		if err != nil {
-			b.Errorf("EvalBool: ", err)
-		}
-		if got != want {
-			b.Errorf("EvalBool - got: %v, want %v", got, want)
-		}
+	for _, bm := range benchmarks {
+		b.Run(bm.expr, func(b *testing.B) {
+			b.StopTimer()
+			dexpr, err := New(bm.expr)
+			if err != nil {
+				b.Errorf("New: %s", err)
+			}
+			for n := 0; n < b.N; n++ {
+				b.StartTimer()
+				got, err := dexpr.EvalBool(vars, funcs)
+				b.StopTimer()
+				if err != nil {
+					b.Errorf("EvalBool: ", err)
+				}
+				if got != bm.want {
+					b.Errorf("EvalBool - got: %v, want %v", got, bm.want)
+				}
+			}
+		})
 	}
 }
 
