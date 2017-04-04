@@ -47,7 +47,7 @@ func (expr *Expr) Eval(
 ) *dlit.Literal {
 	var l *dlit.Literal
 	inspector := func(n ast.Node) bool {
-		eltStore := newEltStore() // TODO: Put this in expr
+		eltStore := newEltStore()
 		l = nodeToLiteral(vars, callFuncs, expr.valStore, eltStore, n)
 		return false
 	}
