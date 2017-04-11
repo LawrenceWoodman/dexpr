@@ -283,7 +283,11 @@ func opAdd(lh *dlit.Literal, rh *dlit.Literal) *dlit.Literal {
 	lhFloat, lhIsFloat := lh.Float()
 	rhFloat, rhIsFloat := rh.Float()
 	if lhIsFloat && rhIsFloat {
-		return dlit.MustNew(lhFloat + rhFloat)
+		r := lhFloat + rhFloat
+		if !math.IsInf(r, 0) {
+			return dlit.MustNew(r)
+		}
+		return dlit.MustNew(ErrUnderflowOverflow)
 	}
 	return dlit.MustNew(ErrIncompatibleTypes)
 }
@@ -302,7 +306,11 @@ func opSub(lh *dlit.Literal, rh *dlit.Literal) *dlit.Literal {
 	lhFloat, lhIsFloat := lh.Float()
 	rhFloat, rhIsFloat := rh.Float()
 	if lhIsFloat && rhIsFloat {
-		return dlit.MustNew(lhFloat - rhFloat)
+		r := lhFloat - rhFloat
+		if !math.IsInf(r, 0) {
+			return dlit.MustNew(r)
+		}
+		return dlit.MustNew(ErrUnderflowOverflow)
 	}
 	return dlit.MustNew(ErrIncompatibleTypes)
 }
@@ -328,7 +336,11 @@ func opMul(lh *dlit.Literal, rh *dlit.Literal) *dlit.Literal {
 	lhFloat, lhIsFloat := lh.Float()
 	rhFloat, rhIsFloat := rh.Float()
 	if lhIsFloat && rhIsFloat {
-		return dlit.MustNew(lhFloat * rhFloat)
+		r := lhFloat * rhFloat
+		if !math.IsInf(r, 0) {
+			return dlit.MustNew(r)
+		}
+		return dlit.MustNew(ErrUnderflowOverflow)
 	}
 	return dlit.MustNew(ErrIncompatibleTypes)
 }
@@ -347,7 +359,11 @@ func opQuo(lh *dlit.Literal, rh *dlit.Literal) *dlit.Literal {
 	lhFloat, lhIsFloat := lh.Float()
 	rhFloat, rhIsFloat := rh.Float()
 	if lhIsFloat && rhIsFloat {
-		return dlit.MustNew(lhFloat / rhFloat)
+		r := lhFloat / rhFloat
+		if !math.IsInf(r, 0) {
+			return dlit.MustNew(r)
+		}
+		return dlit.MustNew(ErrUnderflowOverflow)
 	}
 	return dlit.MustNew(ErrIncompatibleTypes)
 }
