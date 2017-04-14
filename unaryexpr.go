@@ -8,22 +8,38 @@ package dexpr
 
 import (
 	"github.com/lawrencewoodman/dlit"
+	"go/ast"
 	"go/token"
 	"math"
 	"strconv"
 )
 
-func evalUnaryExpr(rh *dlit.Literal, op token.Token) *dlit.Literal {
-	var r *dlit.Literal
-	switch op {
-	case token.NOT:
-		r = opNot(rh)
-	case token.SUB:
-		r = opNeg(rh)
-	default:
-		r = dlit.MustNew(InvalidOpError(op))
+func unaryExprToENode(
+	callFuncs map[string]CallFun,
+	eltStore *eltStore,
+	ue *ast.UnaryExpr,
+) *ENode {
+	rh := nodeToENode(callFuncs, eltStore, ue.X)
+	if rh.Err() != nil {
+		return rh
 	}
-	return r
+	switch ue.Op {
+	case token.NOT:
+		return &ENode{
+			isFunction: true,
+			function: func(vars map[string]*dlit.Literal) *dlit.Literal {
+				return opNot(rh.Eval(vars))
+			},
+		}
+	case token.SUB:
+		return &ENode{
+			isFunction: true,
+			function: func(vars map[string]*dlit.Literal) *dlit.Literal {
+				return opNeg(rh.Eval(vars))
+			},
+		}
+	}
+	return &ENode{isError: true, err: InvalidOpError(ue.Op)}
 }
 
 func opNot(l *dlit.Literal) *dlit.Literal {

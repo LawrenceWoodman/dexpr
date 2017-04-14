@@ -18,9 +18,10 @@ func TestMustNew(t *testing.T) {
 		{"income", "income"},
 		{"6.6", "6.6"},
 	}
+	funcs := map[string]CallFun{}
 
 	for _, c := range cases {
-		got := MustNew(c.in)
+		got := MustNew(c.in, funcs)
 		if got.String() != c.wantStr {
 			t.Errorf("MustNew(%v) - got: %s, want: %s", c.in, got, c.wantStr)
 		}
@@ -29,6 +30,7 @@ func TestMustNew(t *testing.T) {
 
 func TestMustNew_panic(t *testing.T) {
 	expr := "/bob harry"
+	funcs := map[string]CallFun{}
 	wantPanic := InvalidExprError{"/bob harry", ErrSyntax}
 	paniced := false
 	defer func() {
@@ -40,7 +42,7 @@ func TestMustNew_panic(t *testing.T) {
 			}
 		}
 	}()
-	MustNew(expr)
+	MustNew(expr, funcs)
 	if !paniced {
 		t.Errorf("MustNew(%s) - failed to panic with: %s", expr, wantPanic)
 	}
@@ -59,6 +61,36 @@ func TestNew_errors(t *testing.T) {
 		{"func() bool {return 1==1}",
 			InvalidExprError{"func() bool {return 1==1}", ErrSyntax},
 		},
+		{"10 & 101", InvalidExprError{"10 & 101", InvalidOpError(token.AND)}},
+
+		/* Composite literals */
+		{"[]lit{7,9,2}[3] == 9",
+			InvalidExprError{"[]lit{7,9,2}[3] == 9", ErrInvalidIndex},
+		},
+		{"[]int{7,9,2}[1] == 9",
+			InvalidExprError{
+				"[]int{7,9,2}[1] == 9",
+				ErrInvalidCompositeType,
+			},
+		},
+		{"[]string{\"fred\",\"bob\",\"alf\"}[1] == \"bob\"",
+			InvalidExprError{
+				"[]string{\"fred\",\"bob\",\"alf\"}[1] == \"bob\"",
+				ErrInvalidCompositeType,
+			},
+		},
+
+		/* Indexing non indexable values */
+		{"7[0] == 4",
+			InvalidExprError{
+				"7[0] == 4",
+				ErrTypeNotIndexable,
+			}},
+		{"7.2[0] == 4",
+			InvalidExprError{
+				"7.2[0] == 4",
+				ErrTypeNotIndexable,
+			}},
 
 		/* map not implemented */
 		{"map[lit]lit{\"fred\": 7, \"bob\": 9, \"alf\": 2}[\"bob\"] == 8",
@@ -72,8 +104,9 @@ func TestNew_errors(t *testing.T) {
 				ErrSyntax,
 			}},
 	}
+	funcs := map[string]CallFun{}
 	for _, c := range cases {
-		_, err := New(c.in)
+		_, err := New(c.in, funcs)
 		if err == nil {
 			t.Errorf("New(%s) no error, wanted: %s", c.in, err)
 		}
@@ -194,11 +227,11 @@ func TestEval_noerrors(t *testing.T) {
 		"roundto": roundTo,
 	}
 	for _, c := range cases {
-		dexpr, err := New(c.in)
+		dexpr, err := New(c.in, funcs)
 		if err != nil {
 			t.Errorf("New(%s) err: %s", c.in, err)
 		}
-		got := dexpr.Eval(vars, funcs)
+		got := dexpr.Eval(vars)
 		if err := got.Err(); err != nil {
 			t.Errorf("Eval(vars) in: %s, err: %s", c.in, err)
 		}
@@ -229,36 +262,12 @@ func TestEval_errors(t *testing.T) {
 				FunctionError{"roundto", errTooManyArguments}},
 		)},
 
-		/* Composite literals */
-		{"[]int{7,9,2}[1] == 9",
-			dlit.MustNew(
-				InvalidExprError{
-					"[]int{7,9,2}[1] == 9",
-					ErrInvalidCompositeType,
-				})},
-		{"[]string{\"fred\",\"bob\",\"alf\"}[1] == \"bob\"",
-			dlit.MustNew(
-				InvalidExprError{
-					"[]string{\"fred\",\"bob\",\"alf\"}[1] == \"bob\"",
-					ErrInvalidCompositeType,
-				})},
-		{"[]lit{7,9,2}[3] == 9", dlit.MustNew(
-			InvalidExprError{"[]lit{7,9,2}[3] == 9", ErrInvalidIndex},
+		{"[]lit{numStrA, numStrB, numStrC}[2] == 3", dlit.MustNew(
+			InvalidExprError{
+				"[]lit{numStrA, numStrB, numStrC}[2] == 3",
+				VarNotExistError("numStrC")},
 		)},
 
-		/* Indexing non indexable values */
-		{"7[0] == 4",
-			dlit.MustNew(
-				InvalidExprError{
-					"7[0] == 4",
-					ErrTypeNotIndexable,
-				})},
-		{"7.2[0] == 4",
-			dlit.MustNew(
-				InvalidExprError{
-					"7.2[0] == 4",
-					ErrTypeNotIndexable,
-				})},
 		{fmt.Sprintf("%f+%f", float64(math.MaxFloat64), float64(math.MaxFloat64)),
 			dlit.MustNew(InvalidExprError{
 				fmt.Sprintf("%f+%f", float64(math.MaxFloat64), float64(math.MaxFloat64)),
@@ -352,11 +361,11 @@ func TestEval_errors(t *testing.T) {
 		"roundto": roundTo,
 	}
 	for _, c := range cases {
-		dexpr, err := New(c.in)
+		dexpr, err := New(c.in, funcs)
 		if err != nil {
-			t.Errorf("New(%s) err: %s", c.in, err)
+			t.Fatalf("New(%s) err: %s", c.in, err)
 		}
-		got := dexpr.Eval(vars, funcs)
+		got := dexpr.Eval(vars)
 		gotErr := got.Err()
 		wantErr := c.want.Err()
 		if gotErr != wantErr {
@@ -669,11 +678,11 @@ func TestEvalBool_noErrors(t *testing.T) {
 		"roundto": roundTo,
 	}
 	for _, c := range cases {
-		dexpr, err := New(c.in)
+		dexpr, err := New(c.in, funcs)
 		if err != nil {
-			t.Errorf("New(%s) err: %s", c.in, err)
+			t.Fatalf("New(%s) err: %s", c.in, err)
 		}
-		got, err := dexpr.EvalBool(vars, funcs)
+		got, err := dexpr.EvalBool(vars)
 		if err != nil {
 			t.Errorf("EvalBool(vars, %v) err == %v", c.in, err)
 		}
@@ -692,8 +701,9 @@ func TestString(t *testing.T) {
 		"\"true\" == \"TRUE\"",
 		"5 + 1.5 > 6",
 	}
+	funcs := map[string]CallFun{}
 	for _, c := range cases {
-		dexpr, err := New(c)
+		dexpr, err := New(c, funcs)
 		if err != nil {
 			t.Errorf("New(%s) err: %s", c, err)
 		}
@@ -720,7 +730,6 @@ func TestEvalBool_errors(t *testing.T) {
 		{"\"world\" > 2.1", false,
 			InvalidExprError{"\"world\" > 2.1", ErrIncompatibleTypes},
 		},
-		{"10 & 101", false, InvalidExprError{"10 & 101", InvalidOpError(token.AND)}},
 		{"7 && 9", false, InvalidExprError{"7 && 9", ErrIncompatibleTypes}},
 		{"total > 20",
 			false,
@@ -748,19 +757,19 @@ func TestEvalBool_errors(t *testing.T) {
 	}
 	funcs := map[string]CallFun{}
 	for _, c := range cases {
-		dexpr, err := New(c.in)
+		dexpr, err := New(c.in, funcs)
 		if err != nil {
-			t.Errorf("New(%s) err: %s", c.in, err)
+			t.Fatalf("New(%s) err: %s", c.in, err)
 		}
-		got, err := dexpr.EvalBool(vars, funcs)
+		got, err := dexpr.EvalBool(vars)
 		if got != c.want {
-			t.Errorf("EvalBool(vars, %v) == %v, want %v", c.in, got, c.want)
+			t.Errorf("EvalBool(vars) in: %s, got: %v, want %v", c.in, got, c.want)
 		}
 		if err == nil {
-			t.Errorf("EvalBool(vars, %v) err == nil, wantError %v",
+			t.Errorf("EvalBool(vars) in: %s, err: nil, wantError %v",
 				c.in, c.wantError)
 		} else if err != c.wantError {
-			t.Errorf("EvalBool(vars, %v) err == %v, wantError %v",
+			t.Errorf("EvalBool(vars) int: %s, err: %v, wantError %v",
 				c.in, err, c.wantError)
 		}
 	}
@@ -797,13 +806,13 @@ func BenchmarkEvalBool(b *testing.B) {
 	for _, bm := range benchmarks {
 		b.Run(bm.expr, func(b *testing.B) {
 			b.StopTimer()
-			dexpr, err := New(bm.expr)
+			dexpr, err := New(bm.expr, funcs)
 			if err != nil {
 				b.Errorf("New: %s", err)
 			}
 			for n := 0; n < b.N; n++ {
 				b.StartTimer()
-				got, err := dexpr.EvalBool(vars, funcs)
+				got, err := dexpr.EvalBool(vars)
 				b.StopTimer()
 				if err != nil {
 					b.Errorf("EvalBool: ", err)
