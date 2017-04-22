@@ -16,112 +16,100 @@ import (
 var trueLiteral = dlit.MustNew(true)
 var falseLiteral = dlit.MustNew(false)
 
-func binaryExprToENode(
+func binaryExprToenode(
 	callFuncs map[string]CallFun,
 	eltStore *eltStore,
 	be *ast.BinaryExpr,
-) *ENode {
-	lh := nodeToENode(callFuncs, eltStore, be.X)
-	rh := nodeToENode(callFuncs, eltStore, be.Y)
-	if lh.Err() != nil {
+) enode {
+	lh := nodeToenode(callFuncs, eltStore, be.X)
+	rh := nodeToenode(callFuncs, eltStore, be.Y)
+	if _, ok := lh.(enErr); ok {
 		return lh
-	} else if rh.Err() != nil {
+	} else if _, ok := rh.(enErr); ok {
 		return rh
 	}
 
 	switch be.Op {
 	case token.LSS:
-		return &ENode{
-			isFunction: true,
-			function: func(vars map[string]*dlit.Literal) *dlit.Literal {
+		return enFunc{
+			fn: func(vars map[string]*dlit.Literal) *dlit.Literal {
 				return callBinaryFn(opLss, lh, rh, vars)
 			},
 		}
 	case token.LEQ:
-		return &ENode{
-			isFunction: true,
-			function: func(vars map[string]*dlit.Literal) *dlit.Literal {
+		return enFunc{
+			fn: func(vars map[string]*dlit.Literal) *dlit.Literal {
 				return callBinaryFn(opLeq, lh, rh, vars)
 			},
 		}
 	case token.EQL:
-		return &ENode{
-			isFunction: true,
-			function: func(vars map[string]*dlit.Literal) *dlit.Literal {
+		return enFunc{
+			fn: func(vars map[string]*dlit.Literal) *dlit.Literal {
 				return callBinaryFn(opEql, lh, rh, vars)
 			},
 		}
 	case token.NEQ:
-		return &ENode{
-			isFunction: true,
-			function: func(vars map[string]*dlit.Literal) *dlit.Literal {
+		return enFunc{
+			fn: func(vars map[string]*dlit.Literal) *dlit.Literal {
 				return callBinaryFn(opNeq, lh, rh, vars)
 			},
 		}
 	case token.GTR:
-		return &ENode{
-			isFunction: true,
-			function: func(vars map[string]*dlit.Literal) *dlit.Literal {
+		return enFunc{
+			fn: func(vars map[string]*dlit.Literal) *dlit.Literal {
 				return callBinaryFn(opGtr, lh, rh, vars)
 			},
 		}
 	case token.GEQ:
-		return &ENode{
-			isFunction: true,
-			function: func(vars map[string]*dlit.Literal) *dlit.Literal {
+		return enFunc{
+			fn: func(vars map[string]*dlit.Literal) *dlit.Literal {
 				return callBinaryFn(opGeq, lh, rh, vars)
 			},
 		}
 	case token.LAND:
-		return &ENode{
-			isFunction: true,
-			function: func(vars map[string]*dlit.Literal) *dlit.Literal {
+		return enFunc{
+			fn: func(vars map[string]*dlit.Literal) *dlit.Literal {
 				return callBinaryFn(opLand, lh, rh, vars)
 			},
 		}
 	case token.LOR:
-		return &ENode{
-			isFunction: true,
-			function: func(vars map[string]*dlit.Literal) *dlit.Literal {
+		return enFunc{
+			fn: func(vars map[string]*dlit.Literal) *dlit.Literal {
 				return callBinaryFn(opLor, lh, rh, vars)
 			},
 		}
 	case token.ADD:
-		return &ENode{
-			isFunction: true,
-			function: func(vars map[string]*dlit.Literal) *dlit.Literal {
+		return enFunc{
+			fn: func(vars map[string]*dlit.Literal) *dlit.Literal {
 				return callBinaryFn(opAdd, lh, rh, vars)
 			},
 		}
 	case token.SUB:
-		return &ENode{
-			isFunction: true,
-			function: func(vars map[string]*dlit.Literal) *dlit.Literal {
+		return enFunc{
+			fn: func(vars map[string]*dlit.Literal) *dlit.Literal {
 				return callBinaryFn(opSub, lh, rh, vars)
 			},
 		}
 	case token.MUL:
-		return &ENode{
-			isFunction: true,
-			function: func(vars map[string]*dlit.Literal) *dlit.Literal {
+		return enFunc{
+			fn: func(vars map[string]*dlit.Literal) *dlit.Literal {
 				return callBinaryFn(opMul, lh, rh, vars)
 			},
 		}
 	case token.QUO:
-		return &ENode{
-			isFunction: true,
-			function: func(vars map[string]*dlit.Literal) *dlit.Literal {
+		return enFunc{
+			fn: func(vars map[string]*dlit.Literal) *dlit.Literal {
 				return callBinaryFn(opQuo, lh, rh, vars)
 			},
 		}
 	}
-	return &ENode{isError: true, err: InvalidOpError(be.Op)}
+	return enErr{err: InvalidOpError(be.Op)}
 }
 
 func callBinaryFn(
 	fn binaryFn,
-	lh *ENode,
-	rh *ENode,
+	lh enode,
+	rh enode,
 	vars map[string]*dlit.Literal,
 ) *dlit.Literal {
 	lhV := lh.Eval(vars)

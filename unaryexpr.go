@@ -14,32 +14,30 @@ import (
 	"strconv"
 )
 
-func unaryExprToENode(
+func unaryExprToenode(
 	callFuncs map[string]CallFun,
 	eltStore *eltStore,
 	ue *ast.UnaryExpr,
-) *ENode {
-	rh := nodeToENode(callFuncs, eltStore, ue.X)
-	if rh.Err() != nil {
+) enode {
+	rh := nodeToenode(callFuncs, eltStore, ue.X)
+	if _, ok := rh.(enErr); ok {
 		return rh
 	}
 	switch ue.Op {
 	case token.NOT:
-		return &ENode{
-			isFunction: true,
-			function: func(vars map[string]*dlit.Literal) *dlit.Literal {
+		return enFunc{
+			fn: func(vars map[string]*dlit.Literal) *dlit.Literal {
 				return opNot(rh.Eval(vars))
 			},
 		}
 	case token.SUB:
-		return &ENode{
-			isFunction: true,
-			function: func(vars map[string]*dlit.Literal) *dlit.Literal {
+		return enFunc{
+			fn: func(vars map[string]*dlit.Literal) *dlit.Literal {
 				return opNeg(rh.Eval(vars))
 			},
 		}
 	}
-	return &ENode{isError: true, err: InvalidOpError(ue.Op)}
+	return enErr{err: InvalidOpError(ue.Op)}
 }
 
 func opNot(l *dlit.Literal) *dlit.Literal {
