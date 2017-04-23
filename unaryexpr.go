@@ -27,18 +27,32 @@ func unaryExprToenode(
 	case token.NOT:
 		return enFunc{
 			fn: func(vars map[string]*dlit.Literal) *dlit.Literal {
-				return opNot(rh.Eval(vars))
+				return callUnaryFn(opNot, rh, vars)
 			},
 		}
 	case token.SUB:
 		return enFunc{
 			fn: func(vars map[string]*dlit.Literal) *dlit.Literal {
-				return opNeg(rh.Eval(vars))
+				return callUnaryFn(opNeg, rh, vars)
 			},
 		}
 	}
 	return enErr{err: InvalidOpError(ue.Op)}
 }
+
+func callUnaryFn(
+	fn unaryFn,
+	l enode,
+	vars map[string]*dlit.Literal,
+) *dlit.Literal {
+	lV := l.Eval(vars)
+	if lV.Err() != nil {
+		return lV
+	}
+	return fn(lV)
+}
+
+type unaryFn func(*dlit.Literal) *dlit.Literal
 
 func opNot(l *dlit.Literal) *dlit.Literal {
 	lBool, lIsBool := l.Bool()
