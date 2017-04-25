@@ -218,6 +218,12 @@ func TestEval_noerrors(t *testing.T) {
 		{fmt.Sprintf("%0.324f/4", float64(math.MaxFloat64)),
 			dlit.MustNew(float64(math.MaxFloat64) / 4),
 		},
+
+		/* Check operator precedence */
+		{"5 * 2 + 3", dlit.MustNew(13)},
+		{"3 + 5 * 2", dlit.MustNew(13)},
+		{"3 + (5 * 2)", dlit.MustNew(13)},
+		{"(3 + 5) * 2", dlit.MustNew(16)},
 	}
 	vars := map[string]*dlit.Literal{
 		"a":       dlit.MustNew(4),
