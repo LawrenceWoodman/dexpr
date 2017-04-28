@@ -116,6 +116,64 @@ func TestNew_errors(t *testing.T) {
 	}
 }
 
+func TestDexprEval(t *testing.T) {
+	expr := "roundto(bob, 2) + 7"
+	want := dlit.MustNew(26.12)
+	funcs := map[string]CallFun{"roundto": roundTo}
+	vars := map[string]*dlit.Literal{"bob": dlit.MustNew(19.1234)}
+	got := Eval(expr, funcs, vars)
+	if got.String() != want.String() {
+		t.Errorf("Eval: got: %s, want: %s", got, want)
+	}
+}
+
+func TestDexprEvalBool(t *testing.T) {
+	cases := []struct {
+		expr string
+		want bool
+	}{
+		{expr: "roundto(bob, 2) + 7 == 26.12", want: true},
+		{expr: "roundto(bob, 2) + 7 == 26.11", want: false},
+	}
+	for _, c := range cases {
+		funcs := map[string]CallFun{"roundto": roundTo}
+		vars := map[string]*dlit.Literal{"bob": dlit.MustNew(19.1234)}
+		got, err := EvalBool(c.expr, funcs, vars)
+		if got != c.want {
+			t.Errorf("Eval: got: %t, want: %t", got, c.want)
+		}
+		if err != nil {
+			t.Errorf("Eval: err: %s", err)
+		}
+	}
+}
+
+func TestDexprEval_errors(t *testing.T) {
+	expr := "7 {} 3"
+	wantErr := InvalidExprError{"7 {} 3", ErrSyntax}
+	funcs := map[string]CallFun{}
+	vars := map[string]*dlit.Literal{}
+	got := Eval(expr, funcs, vars)
+	if err := got.Err(); err == nil || err.Error() != wantErr.Error() {
+		t.Errorf("Eval: gotErr: %s, want: %s", err, wantErr)
+	}
+}
+
+func TestDexprEvalBool_errors(t *testing.T) {
+	expr := "7 {} 3"
+	want := false
+	wantErr := InvalidExprError{"7 {} 3", ErrSyntax}
+	funcs := map[string]CallFun{}
+	vars := map[string]*dlit.Literal{}
+	got, err := EvalBool(expr, funcs, vars)
+	if got != want {
+		t.Errorf("Eval: got: %t, want: %t", got, want)
+	}
+	if err == nil || err.Error() != wantErr.Error() {
+		t.Errorf("Eval: gotErr: %s, want: %s", err, wantErr)
+	}
+}
+
 func TestEval_noerrors(t *testing.T) {
 	cases := []struct {
 		in   string
